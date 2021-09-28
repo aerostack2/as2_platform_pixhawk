@@ -8,7 +8,6 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
   std::cout << "Starting PixhawkPlatform " << std::endl;
   rclcpp::spin(std::make_shared<PixhawkPlatform>());
-
   rclcpp::shutdown();
   return 0;
 }

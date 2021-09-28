@@ -30,8 +30,15 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
 
   odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
     this->generate_topic_name("self_localization/odom"), 10,
-    [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
+    [this](const nav_msgs::msg::Odometry::UniquePtr msg) { 
+      this->odometry_msg_ = *msg; 
+      this->has_external_estimation_  = true;
+      });
 
+
+  static auto px4_publish_vo_timer = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
+      this->PX4publishVisualOdometry();
+    });
 
   // declare publishers
   px4_offboard_control_mode_pub_ =
@@ -49,15 +56,16 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
 
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
-
-    if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
-      this->PX4publishAttitudeSetpoint();
-      this->PX4publishOffboardControlMode();
-    }
-    else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-      this->PX4publishTrajectorySetpoint();
-      this->PX4publishOffboardControlMode();
-    }
+    
+    // if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
+    //   //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
+    //   this->PX4publishAttitudeSetpoint();
+    //   this->PX4publishOffboardControlMode();
+    // }
+    // else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
+    //   this->PX4publishTrajectorySetpoint();
+    //   this->PX4publishOffboardControlMode();
+    // }
 
     // TODO: Publish sensors directly
     publishSensorData();
@@ -104,18 +112,27 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 {
   //TODO: CREATE A DEFAULT CONTROL MODE FOR BEING ABLE TO SWITCH TO OFFBOARD MODE BEFORE RUNNING THE CONTROLLER
   
-  resetAttiudeSetpoint();
-  if (offboard) {
+  resetAttitudeSetpoint();
+  resetTrajectorySetpoint();
+
+  if (!has_mode_settled_){
+    RCLCPP_INFO(this->get_logger(), "Waiting for mode to settle");
+    return false;
+  }
+  if (offboard ) {
     RCLCPP_INFO(this->get_logger(), "Switching to OFFBOARD mode");
     rclcpp::Rate r(100);
     for (int i = 0; i < 100; i++) {
       
       this->PX4publishOffboardControlMode();
       
-      if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate)
+      if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
+        // RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command _OFFBOARD CHANGE");
         this->PX4publishAttitudeSetpoint();
-      else
+        }
+      else{
         this->PX4publishTrajectorySetpoint();
+        }
 
       r.sleep();
     }
@@ -146,7 +163,10 @@ std::shared_ptr<aerostack2_msgs::msg::PlatformStatus> PixhawkPlatform::ownSetPla
 bool PixhawkPlatform::ownSetPlatformControlMode(
   const aerostack2_msgs::msg::PlatformControlMode & msg)
 {
-  platform_control_mode_ = msg;
+
+  has_mode_settled_= true;
+
+  
 
   px4_offboard_control_mode_.position = false;      //x,y,z
   px4_offboard_control_mode_.velocity = false;      //vx,vy,vz
@@ -185,135 +205,140 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
       }
       break;
     default:
+      has_mode_settled_=false;
       return false;
   }
+  has_mode_settled_=true;
   return true;
 };
 
 bool PixhawkPlatform::ownSendCommand()
 {
-  //TODO: implement multiple PlatformControlMode
+  if (command_changes_){
+    command_changes_ = false;
+    //TODO: implement multiple PlatformControlMode
 
-  // switch (msg.reference_frame)
-  // {
-  // case aerostack2_msgs::msg::PlatformControlMode::LOCAL_ENU_FRAME:
-  //   break;
-  // case aerostack2_msgs::msg::PlatformControlMode::GLOBAL_ENU_FRAME:
-  //   msg.header.frame_id = "map";
-  //   break;
-  // case aerostack2_msgs::msg::PlatformControlMode::BODY_FLU_FRAME:
-  //   msg.header.frame_id = "base_link";
-  //   break;
-  // }
+    // switch (msg.reference_frame)
+    // {
+    // case aerostack2_msgs::msg::PlatformControlMode::LOCAL_ENU_FRAME:
+    //   break;
+    // case aerostack2_msgs::msg::PlatformControlMode::GLOBAL_ENU_FRAME:
+    //   msg.header.frame_id = "map";
+    //   break;
+    // case aerostack2_msgs::msg::PlatformControlMode::BODY_FLU_FRAME:
+    //   msg.header.frame_id = "base_link";
+    //   break;
+    // }
 
-  // TODO: CREATE SUBSCRIBERS TO POSE, TWIST AND THRUST COMMANDS
+    // TODO: CREATE SUBSCRIBERS TO POSE, TWIST AND THRUST COMMANDS
 
-  if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-    if (platform_control_mode_.yaw_mode == aerostack2_msgs::msg::PlatformControlMode::YAY_ANGLE) {
-      Eigen::Quaterniond q_enu;
-      q_enu.w() = this->command_pose_msg_.pose.orientation.w;
-      q_enu.x() = this->command_pose_msg_.pose.orientation.x;
-      q_enu.y() = this->command_pose_msg_.pose.orientation.y;
-      q_enu.z() = this->command_pose_msg_.pose.orientation.z;
+    if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
+      if (platform_control_mode_.yaw_mode == aerostack2_msgs::msg::PlatformControlMode::YAY_ANGLE) {
+        Eigen::Quaterniond q_enu;
+        q_enu.w() = this->command_pose_msg_.pose.orientation.w;
+        q_enu.x() = this->command_pose_msg_.pose.orientation.x;
+        q_enu.y() = this->command_pose_msg_.pose.orientation.y;
+        q_enu.z() = this->command_pose_msg_.pose.orientation.z;
 
-      Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
-        q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
-      Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
-        q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
+        Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
+          q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
+          q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
 
-      double roll, pitch, yaw;
-      px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(
-        q_aircraft, roll, pitch, yaw);
+        double roll, pitch, yaw;
+        px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(
+          q_aircraft, roll, pitch, yaw);
 
-      px4_trajectory_setpoint_.yaw = yaw;
+        px4_trajectory_setpoint_.yaw = yaw;
+      
+      } else
+        // TODO: Handle yaw_speed in this modes
+        px4_trajectory_setpoint_.yawspeed = 0.0f;
     
-    } else
-      // TODO: Handle yaw_speed in this modes
-      px4_trajectory_setpoint_.yawspeed = 0.0f;
-  
-  }
+    }
 
 
-  switch (platform_control_mode_.control_mode) {
-    case aerostack2_msgs::msg::PlatformControlMode::POSITION_MODE: {
-      Eigen::Vector3d position_enu;
-      position_enu.x() = this->command_pose_msg_.pose.position.x;
-      position_enu.y() = this->command_pose_msg_.pose.position.y;
-      position_enu.z() = this->command_pose_msg_.pose.position.z;
+    switch (platform_control_mode_.control_mode) {
+      case aerostack2_msgs::msg::PlatformControlMode::POSITION_MODE: {
+        Eigen::Vector3d position_enu;
+        position_enu.x() = this->command_pose_msg_.pose.position.x;
+        position_enu.y() = this->command_pose_msg_.pose.position.y;
+        position_enu.z() = this->command_pose_msg_.pose.position.z;
 
-      Eigen::Vector3d position_ned = px4_ros_com::frame_transforms::transform_static_frame(
-        position_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        Eigen::Vector3d position_ned = px4_ros_com::frame_transforms::transform_static_frame(
+          position_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
 
-      px4_trajectory_setpoint_.x = position_ned.x();
-      px4_trajectory_setpoint_.y = position_ned.y();
-      px4_trajectory_setpoint_.z = position_ned.z();
-    } break;
-    case aerostack2_msgs::msg::PlatformControlMode::SPEED_MODE: {
-      Eigen::Vector3d speed_enu;
-      speed_enu.x() = this->command_twist_msg_.twist.linear.x;
-      speed_enu.y() = this->command_twist_msg_.twist.linear.y;
-      speed_enu.z() = this->command_twist_msg_.twist.linear.z;
+        px4_trajectory_setpoint_.x = position_ned.x();
+        px4_trajectory_setpoint_.y = position_ned.y();
+        px4_trajectory_setpoint_.z = position_ned.z();
+      } break;
+      case aerostack2_msgs::msg::PlatformControlMode::SPEED_MODE: {
+        Eigen::Vector3d speed_enu;
+        speed_enu.x() = this->command_twist_msg_.twist.linear.x;
+        speed_enu.y() = this->command_twist_msg_.twist.linear.y;
+        speed_enu.z() = this->command_twist_msg_.twist.linear.z;
 
-      Eigen::Vector3d speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
-        speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        Eigen::Vector3d speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
+          speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
 
-      px4_trajectory_setpoint_.vx = speed_ned.x();
-      px4_trajectory_setpoint_.vy = speed_ned.y();
-      px4_trajectory_setpoint_.vz = speed_ned.z();
-    } break;
-    case aerostack2_msgs::msg::PlatformControlMode::ATTITUDE_MODE :{
-      
-      Eigen::Quaterniond q_enu;
-      q_enu.w() = this->command_pose_msg_.pose.orientation.w;
-      q_enu.x() = this->command_pose_msg_.pose.orientation.x;
-      q_enu.y() = this->command_pose_msg_.pose.orientation.y;
-      q_enu.z() = this->command_pose_msg_.pose.orientation.z;
+        px4_trajectory_setpoint_.vx = speed_ned.x();
+        px4_trajectory_setpoint_.vy = speed_ned.y();
+        px4_trajectory_setpoint_.vz = speed_ned.z();
+      } break;
+      case aerostack2_msgs::msg::PlatformControlMode::ATTITUDE_MODE :{
+        
+        Eigen::Quaterniond q_enu;
+        q_enu.w() = this->command_pose_msg_.pose.orientation.w;
+        q_enu.x() = this->command_pose_msg_.pose.orientation.x;
+        q_enu.y() = this->command_pose_msg_.pose.orientation.y;
+        q_enu.z() = this->command_pose_msg_.pose.orientation.z;
 
-      Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
-        q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
-      Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
-        q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
+        Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
+          q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
+          q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
 
-      px4_attitude_setpoint_.q_d[0] = q_aircraft.w();
-      px4_attitude_setpoint_.q_d[1] = q_aircraft.x();
-      px4_attitude_setpoint_.q_d[2] = q_aircraft.y();
-      px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
+        px4_attitude_setpoint_.q_d[0] = q_aircraft.w();
+        px4_attitude_setpoint_.q_d[1] = q_aircraft.x();
+        px4_attitude_setpoint_.q_d[2] = q_aircraft.y();
+        px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
-      px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
-      }
-      break;
-    case aerostack2_msgs::msg::PlatformControlMode::ACRO_MODE :{
+        px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
+        }
+        break;
+      case aerostack2_msgs::msg::PlatformControlMode::ACRO_MODE :{
 
-      Eigen::Vector3d angular_speed_enu(command_twist_msg_.twist.angular.x,
-                                        command_twist_msg_.twist.angular.y,
-                                        command_twist_msg_.twist.angular.z );
+        Eigen::Vector3d angular_speed_enu(command_twist_msg_.twist.angular.x,
+                                          command_twist_msg_.twist.angular.y,
+                                          command_twist_msg_.twist.angular.z );
 
-      Eigen::Vector3d angular_speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
-        angular_speed_ned, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        Eigen::Vector3d angular_speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
+          angular_speed_ned, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
 
-      px4_attitude_setpoint_.roll_body  = angular_speed_ned.x();
-      px4_attitude_setpoint_.pitch_body = angular_speed_ned.y();
-      px4_attitude_setpoint_.yaw_body   = angular_speed_ned.z();
+        px4_attitude_setpoint_.roll_body  = angular_speed_ned.x();
+        px4_attitude_setpoint_.pitch_body = angular_speed_ned.y();
+        px4_attitude_setpoint_.yaw_body   = angular_speed_ned.z();
 
-      px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
-      }
-      
-    break;
-
-    case aerostack2_msgs::msg::PlatformControlMode::ACCEL_MODE :{
-      //TODO: implement this mode 
-      
-      RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
-      return false;}
+        px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
+        }
+        
       break;
 
-    default:
-      return false;
-  }
+      case aerostack2_msgs::msg::PlatformControlMode::ACCEL_MODE :{
+        //TODO: implement this mode 
+        
+        RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
+        return false;}
+        break;
+
+      default:
+        return false;
+    }
+  }// end if(command_changes)
 
   // Actuator commands are published continously 
-  // PX4publishOffboardControlMode();
-  // PX4publishTrajectorySetpoint();
+  PX4publishOffboardControlMode();
+  PX4publishTrajectorySetpoint();
 
   return true;
 };
@@ -338,15 +363,15 @@ void PixhawkPlatform::resetTrajectorySetpoint()
   px4_trajectory_setpoint_.thrust = std::array<float, 3>{NAN, NAN, NAN};
 };
 
-void PixhawkPlatform::resetAttiudeSetpoint()
+void PixhawkPlatform::resetAttitudeSetpoint()
 {
   px4_attitude_setpoint_.pitch_body = NAN;
-  px4_attitude_setpoint_.pitch_body = NAN;
-  px4_attitude_setpoint_.pitch_body = NAN;
+  px4_attitude_setpoint_.roll_body = NAN;
+  px4_attitude_setpoint_.yaw_body = NAN;
 
   // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -1};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, 0};
 };
 
 

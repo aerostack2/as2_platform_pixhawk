@@ -54,12 +54,13 @@ public:
   bool ownSendCommand();
 
   void resetTrajectorySetpoint();
-  void resetAttiudeSetpoint();
+  void resetAttitudeSetpoint();
 
 
 private:
 
   bool has_external_estimation_ = false;
+  bool has_mode_settled_ = false;
 
   std::unique_ptr<aerostack2::Sensor<sensor_msgs::msg::Imu>> imu_sensor_ptr_;
   std::unique_ptr<aerostack2::Sensor<sensor_msgs::msg::BatteryState>> battery_sensor_ptr_;
@@ -95,6 +96,7 @@ private:
   
 
 private:
+  bool command_changes_ = false;
   sensor_msgs::msg::Imu imu_msg_;
   sensor_msgs::msg::BatteryState battery_msg_;
   nav_msgs::msg::Odometry px4_odometry_msg_;

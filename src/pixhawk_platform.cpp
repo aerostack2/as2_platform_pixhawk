@@ -56,15 +56,18 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
 
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
-    
-    // if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
-    //   //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
-    //   this->PX4publishAttitudeSetpoint();
-    //   this->PX4publishOffboardControlMode();
-    // }
-    // else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-    //   this->PX4publishTrajectorySetpoint();
-    //   this->PX4publishOffboardControlMode();
+    // if (platform_status_ptr_->offboard && platform_status_ptr_->armed){
+      
+    //   if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
+    //     //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
+    //     this->PX4publishAttitudeSetpoint();
+    //     this->PX4publishOffboardControlMode();
+    //   }
+    //   else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
+    //     this->PX4publishTrajectorySetpoint();
+    //     this->PX4publishOffboardControlMode();
+    //   }
+
     // }
 
     // TODO: Publish sensors directly
@@ -111,29 +114,22 @@ bool PixhawkPlatform::ownSetArmingState(bool state)
 bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 {
   //TODO: CREATE A DEFAULT CONTROL MODE FOR BEING ABLE TO SWITCH TO OFFBOARD MODE BEFORE RUNNING THE CONTROLLER
-  
+  command_changes_ = false;
   resetAttitudeSetpoint();
-  resetTrajectorySetpoint();
+  platform_control_mode_.yaw_mode= aerostack2_msgs::msg::PlatformControlMode::YAW_ANGLE;
+  platform_control_mode_.control_mode= aerostack2_msgs::msg::PlatformControlMode::ATTITUDE_MODE;
 
-  if (!has_mode_settled_){
-    RCLCPP_INFO(this->get_logger(), "Waiting for mode to settle");
-    return false;
-  }
+  px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();
+  px4_offboard_control_mode_.attitude = true;
+  
   if (offboard ) {
     RCLCPP_INFO(this->get_logger(), "Switching to OFFBOARD mode");
     rclcpp::Rate r(100);
     for (int i = 0; i < 100; i++) {
       
-      this->PX4publishOffboardControlMode();
-      
-      if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
-        // RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command _OFFBOARD CHANGE");
-        this->PX4publishAttitudeSetpoint();
-        }
-      else{
-        this->PX4publishTrajectorySetpoint();
-        }
-
+      this->PX4publishOffboardControlMode();    
+      this->PX4publishAttitudeSetpoint();
+  
       r.sleep();
     }
     this->PX4arm();
@@ -154,7 +150,7 @@ std::shared_ptr<aerostack2_msgs::msg::PlatformStatus> PixhawkPlatform::ownSetPla
   platform_status_ptr_->armed = px4_control_mode_.flag_armed;
   platform_status_ptr_->offboard = px4_control_mode_.flag_control_offboard_enabled;
   if (platform_status_ptr_->offboard){
-    RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
+    // RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
   }
 
   return this->platform_status_ptr_;
@@ -163,10 +159,9 @@ std::shared_ptr<aerostack2_msgs::msg::PlatformStatus> PixhawkPlatform::ownSetPla
 bool PixhawkPlatform::ownSetPlatformControlMode(
   const aerostack2_msgs::msg::PlatformControlMode & msg)
 {
-
-  has_mode_settled_= true;
-
-  
+  command_changes_ = true;
+  platform_control_mode_ = msg;
+  RCLCPP_INFO(this->get_logger(), "Setting platform control mode");  
 
   px4_offboard_control_mode_.position = false;      //x,y,z
   px4_offboard_control_mode_.velocity = false;      //vx,vy,vz
@@ -215,7 +210,6 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
 bool PixhawkPlatform::ownSendCommand()
 {
   if (command_changes_){
-    command_changes_ = false;
     //TODO: implement multiple PlatformControlMode
 
     // switch (msg.reference_frame)
@@ -233,7 +227,9 @@ bool PixhawkPlatform::ownSendCommand()
     // TODO: CREATE SUBSCRIBERS TO POSE, TWIST AND THRUST COMMANDS
 
     if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-      if (platform_control_mode_.yaw_mode == aerostack2_msgs::msg::PlatformControlMode::YAY_ANGLE) {
+      if (platform_control_mode_.yaw_mode == aerostack2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+        RCLCPP_INFO(this->get_logger(), "Computing yaw angle");
+
         Eigen::Quaterniond q_enu;
         q_enu.w() = this->command_pose_msg_.pose.orientation.w;
         q_enu.x() = this->command_pose_msg_.pose.orientation.x;
@@ -250,6 +246,8 @@ bool PixhawkPlatform::ownSendCommand()
           q_aircraft, roll, pitch, yaw);
 
         px4_trajectory_setpoint_.yaw = yaw;
+
+       
       
       } else
         // TODO: Handle yaw_speed in this modes
@@ -304,6 +302,7 @@ bool PixhawkPlatform::ownSendCommand()
         px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
         px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
+
         }
         break;
       case aerostack2_msgs::msg::PlatformControlMode::ACRO_MODE :{
@@ -334,12 +333,27 @@ bool PixhawkPlatform::ownSendCommand()
       default:
         return false;
     }
+    
   }// end if(command_changes)
 
-  // Actuator commands are published continously 
-  PX4publishOffboardControlMode();
-  PX4publishTrajectorySetpoint();
+  // Actuator commands are published continously
 
+  if (platform_status_ptr_->offboard && platform_status_ptr_->armed)
+  {
+    RCLCPP_INFO(this->get_logger(), "Publishing actuator commands");
+    if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate)
+    {
+      //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
+      this->PX4publishOffboardControlMode();
+      this->PX4publishAttitudeSetpoint();
+    }
+    else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration)
+    {
+      RCLCPP_INFO(this->get_logger(), "Publishing TrajectorySetpoint");
+      this->PX4publishOffboardControlMode();
+      this->PX4publishTrajectorySetpoint();
+    }
+  }
   return true;
 };
 
@@ -371,7 +385,7 @@ void PixhawkPlatform::resetAttitudeSetpoint()
 
   // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, 0};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -0.1};
 };
 
 

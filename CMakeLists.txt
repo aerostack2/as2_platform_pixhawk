@@ -47,7 +47,6 @@ ament_target_dependencies(${PROJECT_NAME}_node
   aerostack2_core
   aerostack2_msgs
   geometry_msgs
-  
 )
 
 

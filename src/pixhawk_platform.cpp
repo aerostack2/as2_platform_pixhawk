@@ -133,8 +133,10 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
       r.sleep();
     }
     this->PX4arm();
-    this->PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
-    RCLCPP_INFO(this->get_logger(), "OFFBOARD mode enabled");
+    // if (this->getFlagSimulationMode()){
+      this->PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
+      RCLCPP_INFO(this->get_logger(), "OFFBOARD mode enabled");
+    // }
     return true;
   } else {
     RCLCPP_ERROR(
@@ -146,11 +148,13 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 std::shared_ptr<aerostack2_msgs::msg::PlatformStatus> PixhawkPlatform::ownSetPlatformStatus()
 {
   //TODO: Implement set platformStatus method
-    
+  static bool last_offboard_state = px4_control_mode_.flag_control_offboard_enabled;
   platform_status_ptr_->armed = px4_control_mode_.flag_armed;
   platform_status_ptr_->offboard = px4_control_mode_.flag_control_offboard_enabled;
-  if (platform_status_ptr_->offboard){
-    // RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
+  if (platform_status_ptr_->offboard != last_offboard_state){
+    if (platform_status_ptr_->offboard)RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
+    else RCLCPP_INFO(this->get_logger(), "OFFBOARD_DISABLED");
+    last_offboard_state = platform_status_ptr_->offboard;
   }
 
   return this->platform_status_ptr_;
@@ -204,6 +208,10 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
       return false;
   }
   has_mode_settled_=true;
+  if (!platform_status_ptr_->armed){
+    // TODO: DO THIS FROM PARENT METHODS
+    this->ownSetArmingState(true);
+  }
   return true;
 };
 
@@ -228,7 +236,7 @@ bool PixhawkPlatform::ownSendCommand()
 
     if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
       if (platform_control_mode_.yaw_mode == aerostack2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
-        RCLCPP_INFO(this->get_logger(), "Computing yaw angle");
+        // RCLCPP_INFO(this->get_logger(), "Computing yaw angle");
 
         Eigen::Quaterniond q_enu;
         q_enu.w() = this->command_pose_msg_.pose.orientation.w;
@@ -338,9 +346,10 @@ bool PixhawkPlatform::ownSendCommand()
 
   // Actuator commands are published continously
 
-  if (platform_status_ptr_->offboard && platform_status_ptr_->armed)
+  // if (platform_status_ptr_->offboard && platform_status_ptr_->armed )
+  if (true)
   {
-    RCLCPP_INFO(this->get_logger(), "Publishing actuator commands");
+    // RCLCPP_INFO(this->get_logger(), "Publishing actuator commands");
     if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate)
     {
       //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
@@ -349,7 +358,7 @@ bool PixhawkPlatform::ownSendCommand()
     }
     else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration)
     {
-      RCLCPP_INFO(this->get_logger(), "Publishing TrajectorySetpoint");
+      // RCLCPP_INFO(this->get_logger(), "Publishing TrajectorySetpoint");
       this->PX4publishOffboardControlMode();
       this->PX4publishTrajectorySetpoint();
     }
@@ -385,7 +394,7 @@ void PixhawkPlatform::resetAttitudeSetpoint()
 
   // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -0.1};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, 0.1};
 };
 
 
@@ -472,13 +481,13 @@ void PixhawkPlatform::PX4publishVisualOdometry(){
                             odometry_msg_.pose.pose.orientation.y,
                             odometry_msg_.pose.pose.orientation.z);
 
-  // Eigen::Vector3d pos_enu(  odometry_msg_.pose.pose.position.x,
-  //                           odometry_msg_.pose.pose.position.y,
-  //                           odometry_msg_.pose.pose.position.z);
+  Eigen::Vector3d pos_enu(  odometry_msg_.pose.pose.position.x,
+                            odometry_msg_.pose.pose.position.y,
+                            odometry_msg_.pose.pose.position.z);
 
-  // Eigen::Vector3d vel_enu(  odometry_msg_.twist.twist.linear.x,
-  //                           odometry_msg_.twist.twist.linear.y,
-  //                           odometry_msg_.twist.twist.linear.z);
+  Eigen::Vector3d vel_enu(  odometry_msg_.twist.twist.linear.x,
+                            odometry_msg_.twist.twist.linear.y,
+                            odometry_msg_.twist.twist.linear.z);
   
   // Eigen::Vector3d ang_vel_FLU(  odometry_msg_.twist.twist.angular.x,
   //                               odometry_msg_.twist.twist.angular.y,
@@ -486,25 +495,31 @@ void PixhawkPlatform::PX4publishVisualOdometry(){
   
   px4_visual_odometry_msg_.LOCAL_FRAME_NED;
 
-  Eigen::Quaterniond q_aircraft = transform_orientation(q_enu, StaticTF::AIRCRAFT_TO_BASELINK);
+  Eigen::Quaterniond q_aircraft_enu = transform_orientation(q_enu, StaticTF::AIRCRAFT_TO_BASELINK);
+  Eigen::Quaterniond q_aircraft_ned = transform_orientation(q_aircraft_enu, StaticTF::ENU_TO_NED);
+
+  Eigen::Vector3d pos_ned = transform_static_frame(pos_enu, StaticTF::ENU_TO_NED);
+  Eigen::Vector3d vel_ned = transform_static_frame(vel_enu, StaticTF::ENU_TO_NED);
   
-  px4_visual_odometry_msg_.x = odometry_msg_.pose.pose.position.x;
-  px4_visual_odometry_msg_.y = odometry_msg_.pose.pose.position.y;
-  px4_visual_odometry_msg_.z = odometry_msg_.pose.pose.position.z;
+  px4_visual_odometry_msg_.x = pos_ned.x();
+  px4_visual_odometry_msg_.y = pos_ned.y();
+  px4_visual_odometry_msg_.z = pos_ned.z();
 
-  px4_visual_odometry_msg_.vx = odometry_msg_.twist.twist.linear.x;
-  px4_visual_odometry_msg_.vy = odometry_msg_.twist.twist.linear.y;
-  px4_visual_odometry_msg_.vz = odometry_msg_.twist.twist.linear.z;
+  px4_visual_odometry_msg_.vx = vel_ned.x();
+  px4_visual_odometry_msg_.vy = vel_ned.y();
+  px4_visual_odometry_msg_.vz = vel_ned.z();
 
-  px4_visual_odometry_msg_.q[0] =  q_aircraft.w();
-  px4_visual_odometry_msg_.q[1] =  q_aircraft.x();
-  px4_visual_odometry_msg_.q[2] =  q_aircraft.y();
-  px4_visual_odometry_msg_.q[3] =  q_aircraft.z();
+  px4_visual_odometry_msg_.q[0] =  q_aircraft_ned.w();
+  px4_visual_odometry_msg_.q[1] =  q_aircraft_ned.x();
+  px4_visual_odometry_msg_.q[2] =  q_aircraft_ned.y();
+  px4_visual_odometry_msg_.q[3] =  q_aircraft_ned.z();
   
   // TODO CHECK THIS ORIENTATION FRAMES
+  
+  // MINUS SIGN FOR CHANGING FLU TO FRD
   px4_visual_odometry_msg_.rollspeed = odometry_msg_.twist.twist.angular.x;
-  px4_visual_odometry_msg_.pitchspeed = odometry_msg_.twist.twist.angular.y;
-  px4_visual_odometry_msg_.yawspeed = odometry_msg_.twist.twist.angular.z;
+  px4_visual_odometry_msg_.pitchspeed = - odometry_msg_.twist.twist.angular.y;
+  px4_visual_odometry_msg_.yawspeed = - odometry_msg_.twist.twist.angular.z;
 
   px4_visual_odometry_msg_.timestamp = timestamp_.load();
   px4_visual_odometry_pub_->publish(px4_visual_odometry_msg_);

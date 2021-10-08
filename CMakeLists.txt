@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
-project(pixhawk_test)
 set(PROJECT_NAME pixhawk_platform)
+project(${PROJECT_NAME})
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)

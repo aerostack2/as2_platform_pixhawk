@@ -57,6 +57,9 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
     this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>("fmu/vehicle_visual_odometry/in", 10);
   
 
+  static auto timer_commands_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
+       this->ownSendCommand();
+  });
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
     // if (platform_status_ptr_->offboard && platform_status_ptr_->armed){
@@ -225,6 +228,20 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
 
 bool PixhawkPlatform::ownSendCommand()
 {
+
+  // px4_rates_setpoint_.roll = 0.0f;
+  // px4_rates_setpoint_.pitch = 0.0f;
+  // px4_rates_setpoint_.yaw = -1.0f;
+
+  // px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;
+  PX4publishRatesSetpoint();
+  return true;
+}
+
+
+/*
+bool PixhawkPlatform::ownSendCommand()
+{
   // if (command_changes_){
   if (true){
     //TODO: implement multiple PlatformControlMode
@@ -322,18 +339,29 @@ bool PixhawkPlatform::ownSendCommand()
         }
         break;
       case aerostack2_msgs::msg::PlatformControlMode::ACRO_MODE :{
-        Eigen::Vector3d angular_speed_enu(command_twist_msg_.twist.angular.x,
-                                          command_twist_msg_.twist.angular.y,
-                                          command_twist_msg_.twist.angular.z );
 
-        std::cout << angular_speed_enu << std::endl;
+        // TODO: CHECK ORIENTATION
 
-        Eigen::Vector3d angular_speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
-          angular_speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+        // Eigen::Vector3d angular_speed_enu(command_twist_msg_.twist.angular.x,
+        //                                   command_twist_msg_.twist.angular.y,
+        //                                   command_twist_msg_.twist.angular.z );
 
-        px4_rates_setpoint_.roll = angular_speed_ned.x();
-        px4_rates_setpoint_.pitch = angular_speed_ned.y();
-        px4_rates_setpoint_.yaw = angular_speed_ned.z();
+        // std::cout << angular_speed_enu << std::endl;
+
+        // Eigen::Vector3d angular_speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
+        //   angular_speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+
+        // px4_rates_setpoint_.roll = angular_speed_ned.x();
+        // px4_rates_setpoint_.pitch = angular_speed_ned.y();
+        // px4_rates_setpoint_.yaw = angular_speed_ned.z();
+
+        //px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
+        //px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
+        // px4_rates_setpoint_.yaw = command_twist_msg_.twist.angular.z;
+        
+        px4_rates_setpoint_.roll = 0.0f;
+        px4_rates_setpoint_.pitch = 0.0f;
+        px4_rates_setpoint_.yaw = -1.0f;
 
         px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
 
@@ -386,7 +414,7 @@ bool PixhawkPlatform::ownSendCommand()
   }
   return true;
 };
-
+*/
 
 
 void PixhawkPlatform::resetTrajectorySetpoint()
@@ -420,6 +448,7 @@ void PixhawkPlatform::resetAttitudeSetpoint()
 
 void PixhawkPlatform::resetRatesSetpoint()
 {
+  RCLCPP_INFO(this->get_logger(), "Resetting rates setpoint");
   px4_rates_setpoint_.roll=0.0f;
   px4_rates_setpoint_.pitch=0.0f;
   px4_rates_setpoint_.yaw=0.0f;
@@ -457,8 +486,8 @@ void PixhawkPlatform::PX4disarm() const
  */
 void PixhawkPlatform::PX4publishOffboardControlMode()
 {
-  px4_offboard_control_mode_.timestamp = timestamp_.load();
-  px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
+  // px4_offboard_control_mode_.timestamp = timestamp_.load();
+  // px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
 
 /**
@@ -467,19 +496,36 @@ void PixhawkPlatform::PX4publishOffboardControlMode()
 void PixhawkPlatform::PX4publishTrajectorySetpoint()
 {
   px4_trajectory_setpoint_.timestamp = timestamp_.load();
+  px4_offboard_control_mode_.timestamp = timestamp_.load();
+
   px4_trajectory_setpoint_pub_->publish(px4_trajectory_setpoint_);
+  px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
+
 }
 
 void PixhawkPlatform::PX4publishAttitudeSetpoint()
 {
   px4_attitude_setpoint_.timestamp = timestamp_.load();
+  px4_offboard_control_mode_.timestamp = timestamp_.load();
+
   px4_vehicle_attitude_setpoint_pub_->publish(px4_attitude_setpoint_);
+  px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
+
 }
 
 void PixhawkPlatform::PX4publishRatesSetpoint()
 {
+  px4_rates_setpoint_.roll  = command_twist_msg_.twist.angular.x;
+  px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
+  px4_rates_setpoint_.yaw   = command_twist_msg_.twist.angular.z;
+
+  px4_rates_setpoint_.thrust_body[2]= - command_thrust_msg_.thrust_normalized;
+
   px4_rates_setpoint_.timestamp = timestamp_.load();
+  px4_offboard_control_mode_.timestamp = timestamp_.load();
+
   px4_vehicle_rates_setpoint_pub_->publish(px4_rates_setpoint_);
+  px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
 
 /**

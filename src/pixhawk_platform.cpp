@@ -56,27 +56,11 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
   px4_visual_odometry_pub_ =
     this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>("fmu/vehicle_visual_odometry/in", 10);
   
-
   static auto timer_commands_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
        this->ownSendCommand();
   });
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
-    // if (platform_status_ptr_->offboard && platform_status_ptr_->armed){
-      
-    //   if (px4_offboard_control_mode_.attitude || px4_offboard_control_mode_.body_rate){
-    //     //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
-    //     this->PX4publishAttitudeSetpoint();
-    //     this->PX4publishOffboardControlMode();
-    //   }
-    //   else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-    //     this->PX4publishTrajectorySetpoint();
-    //     this->PX4publishOffboardControlMode();
-    //   }
-
-    // }
-
-    // TODO: Publish sensors directly
     publishSensorData();
   });
   
@@ -217,27 +201,40 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
       return false;
   }
   has_mode_settled_=true;
-  if (!platform_status_ptr_->armed){
-    // TODO: DO THIS FROM PARENT METHODS
-    this->ownSetArmingState(true);
-  }
 
-  this->PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
   return true;
 };
 
 bool PixhawkPlatform::ownSendCommand()
 {
+  static bool first_run = true;
+  if (first_run)
+  {
+    px4_rates_setpoint_.roll = 0;
+    px4_rates_setpoint_.pitch = 0;
+    px4_rates_setpoint_.yaw = 0;
 
-  // px4_rates_setpoint_.roll = 0.0f;
-  // px4_rates_setpoint_.pitch = 0.0f;
-  // px4_rates_setpoint_.yaw = -1.0f;
+    px4_rates_setpoint_.thrust_body[2] = -0.2f;
 
-  // px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;
-  PX4publishRatesSetpoint();
+    PX4publishRatesSetpoint();
+  }
+  if (platform_status_ptr_->offboard && platform_status_ptr_->armed)
+  {
+    first_run = false;
+
+    px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
+    px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
+    px4_rates_setpoint_.yaw = command_twist_msg_.twist.angular.z;
+
+    // px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;
+    
+    //TODO: CLEAN THIS UP
+    px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/(2.0f*1.5f*9.81f);
+
+    PX4publishRatesSetpoint();
+  }
   return true;
 }
-
 
 /*
 bool PixhawkPlatform::ownSendCommand()
@@ -515,11 +512,6 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint()
 
 void PixhawkPlatform::PX4publishRatesSetpoint()
 {
-  px4_rates_setpoint_.roll  = command_twist_msg_.twist.angular.x;
-  px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
-  px4_rates_setpoint_.yaw   = command_twist_msg_.twist.angular.z;
-
-  px4_rates_setpoint_.thrust_body[2]= - command_thrust_msg_.thrust_normalized;
 
   px4_rates_setpoint_.timestamp = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();

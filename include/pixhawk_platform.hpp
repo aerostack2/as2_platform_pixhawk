@@ -23,6 +23,7 @@
 #include <px4_msgs/msg/vehicle_status.hpp>
 #include <px4_msgs/msg/vehicle_local_position_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_attitude_setpoint.hpp>
+#include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
 #include <px4_msgs/msg/vehicle_status.hpp>
@@ -56,6 +57,7 @@ public:
 
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
+  void resetRatesSetpoint();
 
 
 private:
@@ -83,6 +85,10 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
     px4_vehicle_attitude_setpoint_pub_;
+  
+  rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr
+    px4_vehicle_rates_setpoint_pub_;
+
   rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr
     px4_visual_odometry_pub_;
 
@@ -92,6 +98,7 @@ private:
   void PX4publishOffboardControlMode();
   void PX4publishTrajectorySetpoint();
   void PX4publishAttitudeSetpoint();
+  void PX4publishRatesSetpoint();
   void PX4publishVehicleCommand(uint16_t command, float param1 = 0.0, float param2 = 0.0) const;
   void PX4publishVisualOdometry();
   
@@ -114,6 +121,7 @@ private:
   px4_msgs::msg::OffboardControlMode px4_offboard_control_mode_;
   px4_msgs::msg::TrajectorySetpoint px4_trajectory_setpoint_;
   px4_msgs::msg::VehicleAttitudeSetpoint px4_attitude_setpoint_;
+  px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
   px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
 
 private:

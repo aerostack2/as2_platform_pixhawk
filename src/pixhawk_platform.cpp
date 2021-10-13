@@ -156,6 +156,8 @@ std::shared_ptr<aerostack2_msgs::msg::PlatformStatus> PixhawkPlatform::ownSetPla
 bool PixhawkPlatform::ownSetPlatformControlMode(
   const aerostack2_msgs::msg::PlatformControlMode & msg)
 {
+  return true;
+
   command_changes_ = true;
   platform_control_mode_ = msg;
   RCLCPP_INFO(this->get_logger(), "Setting platform control mode");  
@@ -207,6 +209,7 @@ bool PixhawkPlatform::ownSetPlatformControlMode(
 
 bool PixhawkPlatform::ownSendCommand()
 {
+  px4_offboard_control_mode_.body_rate = true;
   static bool first_run = true;
   if (first_run)
   {
@@ -229,7 +232,14 @@ bool PixhawkPlatform::ownSendCommand()
     // px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;
     
     //TODO: CLEAN THIS UP
-    px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/(2.0f*1.5f*9.81f);
+    if (command_thrust_msg_.thrust < 0.001)
+    {
+      px4_rates_setpoint_.thrust_body[2] = -0.2f;
+    }
+    else{
+      px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/(2.0f*1.5f*9.81f);
+
+    }
 
     PX4publishRatesSetpoint();
   }

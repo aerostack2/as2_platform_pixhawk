@@ -233,7 +233,7 @@ bool PixhawkPlatform::ownSendCommand()
     //TODO: CLEAN THIS UP
     if (command_thrust_msg_.thrust < 0.001)
     {
-      px4_rates_setpoint_.thrust_body[2] = -0.2f;
+      px4_rates_setpoint_.thrust_body[2] = -0.15f;
     }
     else{
       px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/this->getMaxThrust();

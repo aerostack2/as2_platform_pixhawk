@@ -13,11 +13,11 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
 
   // declare subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
-    "/fmu/sensor_combined/out", 10,
+    "fmu/sensor_combined/out", 10,
     std::bind(&PixhawkPlatform::px4imuCallback, this, std::placeholders::_1));
 
   px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-    "/fmu/vehicle_odometry/out", 10,
+    "fmu/vehicle_odometry/out", 10,
     std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
 
   px4_timesync_sub_ = this->create_subscription<px4_msgs::msg::Timesync>(

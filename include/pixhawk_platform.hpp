@@ -59,7 +59,6 @@ public:
   void resetAttitudeSetpoint();
   void resetRatesSetpoint();
 
-
 private:
 
   bool has_external_estimation_ = false;

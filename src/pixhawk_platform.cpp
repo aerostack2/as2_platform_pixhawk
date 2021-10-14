@@ -64,7 +64,6 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
     publishSensorData();
   });
   
-
 }
 
 void PixhawkPlatform::configureSensors()
@@ -237,8 +236,7 @@ bool PixhawkPlatform::ownSendCommand()
       px4_rates_setpoint_.thrust_body[2] = -0.2f;
     }
     else{
-      px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/(2.0f*1.5f*9.81f);
-
+      px4_rates_setpoint_.thrust_body[2] = - command_thrust_msg_.thrust/this->getMaxThrust();
     }
 
     PX4publishRatesSetpoint();

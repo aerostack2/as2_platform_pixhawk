@@ -29,7 +29,7 @@ PixhawkPlatform::PixhawkPlatform() : aerostack2::AerialPlatform()
     [this](const px4_msgs::msg::VehicleControlMode::UniquePtr msg) { this->px4_control_mode_ = *msg; });
 
   odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-    this->generate_topic_name("self_localization/odom"), 10,
+    this->generate_global_name("self_localization/odom"), 10,
     [this](const nav_msgs::msg::Odometry::UniquePtr msg) { 
       this->odometry_msg_ = *msg; 
       this->has_external_estimation_  = true;

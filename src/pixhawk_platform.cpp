@@ -22,7 +22,32 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
   px4_vehicle_control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>(
     "fmu/vehicle_control_mode/out", 10,
     [this](const px4_msgs::msg::VehicleControlMode::UniquePtr msg) {
-      this->px4_control_mode_ = *msg;
+      //TODO: clean this in aerial platform
+      static bool last_arm_state = msg->flag_armed;
+      static bool last_offboard_state = msg->flag_control_offboard_enabled;
+
+      this->platform_info_msg_.armed = msg->flag_armed;
+      this->platform_info_msg_.offboard =msg->flag_control_offboard_enabled;
+
+      if (this->platform_info_msg_.offboard != last_offboard_state) {
+        if (this->platform_info_msg_.offboard)
+          RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
+        else
+          RCLCPP_INFO(this->get_logger(), "OFFBOARD_DISABLED");
+        last_offboard_state = this->platform_info_msg_.offboard;
+      }
+
+      if (this->platform_info_msg_.armed != last_arm_state) {
+        if (this->platform_info_msg_.armed) {
+          RCLCPP_INFO(this->get_logger(), "ARMING");
+          this->handleStateMachineEvent(as2_msgs::msg::PlatformStateMachineEvent::ARM);
+        } else {
+          RCLCPP_INFO(this->get_logger(), "DISARMING");
+          this->handleStateMachineEvent(as2_msgs::msg::PlatformStateMachineEvent::DISARM);
+        }
+
+        last_arm_state = this->platform_info_msg_.armed;
+      }
     });
 
   odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(

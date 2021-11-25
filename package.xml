@@ -16,8 +16,8 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>px4_msgs</depend>
-  <depend>aerostack2_core</depend>
-  <depend>aerostack2_msgs</depend>
+  <depend>as2_core</depend>
+  <depend>as2_msgs</depend>
   <depend>px4_ros_com</depend>
   
 

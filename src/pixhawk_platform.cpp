@@ -22,7 +22,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
   px4_vehicle_control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>(
     "fmu/vehicle_control_mode/out", 10,
     [this](const px4_msgs::msg::VehicleControlMode::UniquePtr msg) {
-      //TODO: clean this in aerial platform
+      //TODO: clean this in aerial platform and remove lambda function
       static bool last_arm_state = msg->flag_armed;
       static bool last_offboard_state = msg->flag_control_offboard_enabled;
 

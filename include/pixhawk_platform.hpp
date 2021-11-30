@@ -53,7 +53,6 @@ public:
   void resetRatesSetpoint();
 
 private:
-  bool has_external_estimation_ = false;
   bool has_mode_settled_ = false;
 
   std::unique_ptr<as2::sensors::Imu> imu_sensor_ptr_;
@@ -101,7 +100,7 @@ private:
   std::atomic<uint64_t> timestamp_;
   rclcpp::TimerBase::SharedPtr timer_;
 
-  as2_msgs::msg::PlatformControlMode platform_control_mode_;
+  // as2_msgs::msg::PlatformControlMode platform_control_mode_;
 
   px4_msgs::msg::VehicleControlMode px4_control_mode_;
   px4_msgs::msg::VehicleStatus px4_vehicle_status_;
@@ -114,6 +113,7 @@ private:
 private:
   void px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg);
   void px4odometryCallback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+  void px4VehicleControlModeCallback(const px4_msgs::msg::VehicleControlMode::SharedPtr msg);
 
   // void batteryCallback(const px4_msgs::msg::BatteryState::SharedPtr msg);
 };

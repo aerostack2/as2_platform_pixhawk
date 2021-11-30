@@ -4,10 +4,13 @@
 
 int main(int argc, char * argv[])
 {
-  setvbuf(stdout, NULL, _IONBF, BUFSIZ);
   rclcpp::init(argc, argv);
-  std::cout << "Starting PixhawkPlatform " << std::endl;
-  rclcpp::spin(std::make_shared<PixhawkPlatform>());
+  auto node = std::make_shared<PixhawkPlatform>();
+  rclcpp::Rate r(200);
+  while (rclcpp::ok()) {
+    rclcpp::spin_some(node);
+    r.sleep();
+  }
   rclcpp::shutdown();
   return 0;
 }

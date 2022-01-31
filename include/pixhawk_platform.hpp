@@ -21,6 +21,7 @@
 #include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_status.hpp>
 #include <px4_msgs/msg/vehicle_visual_odometry.hpp>
+#include <px4_msgs/msg/sensor_gps.hpp>
 #include <string>
 
 #include "as2_core/aerial_platform.hpp"
@@ -31,6 +32,8 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
+// #include "sensor_msgs/msg/nav_sat_status.hpp"  // TODO: needed?
 
 class PixhawkPlatform : public as2::AerialPlatform
 {
@@ -58,6 +61,7 @@ private:
   std::unique_ptr<as2::sensors::Imu> imu_sensor_ptr_;
   std::unique_ptr<as2::sensors::Sensor<sensor_msgs::msg::BatteryState>> battery_sensor_ptr_;
   std::unique_ptr<as2::sensors::Sensor<nav_msgs::msg::Odometry>> odometry_raw_estimation_ptr_;
+  std::unique_ptr<as2::sensors::GPS> gps_sensor_ptr_;
 
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_sub_;
 
@@ -68,6 +72,7 @@ private:
   rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr px4_timesync_sub_;
 
   // rclcpp::Subscription<px4_msgs::msg::BatteryState>::SharedPtr battery_sub_;
+  rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr gps_sub_;
 
   // PX4 publishers
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
@@ -94,6 +99,7 @@ private:
   bool command_changes_ = false;
   sensor_msgs::msg::Imu imu_msg_;
   sensor_msgs::msg::BatteryState battery_msg_;
+  sensor_msgs::msg::NavSatFix nav_sat_fix_msg_;
   nav_msgs::msg::Odometry px4_odometry_msg_;
   nav_msgs::msg::Odometry odometry_msg_;
 
@@ -116,6 +122,7 @@ private:
   void px4VehicleControlModeCallback(const px4_msgs::msg::VehicleControlMode::SharedPtr msg);
 
   // void batteryCallback(const px4_msgs::msg::BatteryState::SharedPtr msg);
+  void gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg);
 };
 
 #endif  // PIXHAWK_TEST_HPP_

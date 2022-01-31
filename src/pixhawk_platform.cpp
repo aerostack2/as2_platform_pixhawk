@@ -19,6 +19,10 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
     "fmu/vehicle_control_mode/out", 1,
     std::bind(&PixhawkPlatform::px4VehicleControlModeCallback, this, std::placeholders::_1));
 
+  px4_gps_sub_ = this->create_subscription<px4_msgs::msg::SensorGps>(
+    "fmu/sensor_gps/out", 1,
+    std::bind(&PixhawkPlatform::gpsCallback, this, std::placeholders::_1));
+
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
       "fmu/vehicle_odometry/out", 1,
@@ -63,6 +67,8 @@ void PixhawkPlatform::configureSensors()
   // TODO: implement Battery Sensor for px4
   // battery_sensor_ptr_ =
   //   std::make_unique<as2::sensors::Sensor<sensor_msgs::msg::BatteryState>>("battery", this);
+  gps_sensor_ptr_ =
+    std::make_unique<as2::sensors::GPS>("gps", this);
 
   odometry_raw_estimation_ptr_ =
     std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
@@ -76,6 +82,9 @@ void PixhawkPlatform::publishSensorData()
 
   //battery_msg_.header.stamp = timestamp;
   //battery_sensor_ptr_->publishData(battery_msg_);
+
+  nav_sat_fix_msg_.header.stamp = timestamp;
+  gps_sensor_ptr_->publishData(nav_sat_fix_msg_);
 
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_msg_.header.stamp = timestamp;
@@ -638,4 +647,16 @@ void PixhawkPlatform::px4VehicleControlModeCallback(
     }
     last_arm_state = this->platform_info_msg_.armed;
   }
+}
+
+void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
+{
+  nav_sat_fix_msg_.header.frame_id = "gps";
+  nav_sat_fix_msg_.status.status = 0;
+  nav_sat_fix_msg_.status.service = 1;
+  nav_sat_fix_msg_.latitude = msg->lat;
+  nav_sat_fix_msg_.longitude = msg->lon;
+  nav_sat_fix_msg_.altitude = msg->alt_ellipsoid;
+  nav_sat_fix_msg_.position_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+  nav_sat_fix_msg_.position_covariance_type = 0;
 }

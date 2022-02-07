@@ -651,12 +651,32 @@ void PixhawkPlatform::px4VehicleControlModeCallback(
 
 void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
 {
-  nav_sat_fix_msg_.header.frame_id = "gps";
-  nav_sat_fix_msg_.status.status = 0;
-  nav_sat_fix_msg_.status.service = 1;
+  // Reference:
+  // https://github.com/PX4/PX4-Autopilot/blob/052adfbfd977abfad5b6f58d5404bba7dd209736/src/modules/mavlink/streams/GPS_RAW_INT.hpp#L58
+  // https://github.com/mavlink/mavros/blob/b392c23add8781a67ac90915278fe41086fecaeb/mavros/src/plugins/global_position.cpp#L161
+
+  nav_sat_fix_msg_.header.frame_id = "wgs84";
+  if (msg->fix_type > 2) {  // At least 3D position
+    nav_sat_fix_msg_.status.status = sensor_msgs::NavSatStatus::STATUS_FIX;
+  } else { 
+    nav_sat_fix_msg_.status.status = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
+  }
+  nav_sat_fix_msg_.status.service = sensor_msgs::NavSatStatus::SERVICE_GPS;  // DEFAULT
   nav_sat_fix_msg_.latitude = msg->lat;
   nav_sat_fix_msg_.longitude = msg->lon;
   nav_sat_fix_msg_.altitude = msg->alt_ellipsoid;
-  nav_sat_fix_msg_.position_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-  nav_sat_fix_msg_.position_covariance_type = 0;
+
+  if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
+    // Position uncertainty --> Diagonal known
+    nav_sat_fix_msg_.position_covariance.fill(0.0);
+    nav_sat_fix_msg_.position_covariance[0] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg_.position_covariance[4] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg_.position_covariance[8] = std::pow(msg->epv, 2);
+    nav_sat_fix_msg_.position_covariance_type = GPS::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+  } else { 
+    // UNKOWN
+    nav_sat_fix_msg_.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    nav_sat_fix_msg_.position_covariance_type = GPS::COVARIANCE_TYPE_UNKNOWN;
+  }
+
 }

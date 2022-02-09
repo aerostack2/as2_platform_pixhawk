@@ -19,6 +19,7 @@ find_package(as2_core REQUIRED)
 find_package(as2_msgs REQUIRED)
 find_package(px4_ros_com REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(gps_utils REQUIRED)
 
 
 # uncomment the following section in order to fill in
@@ -47,6 +48,7 @@ ament_target_dependencies(${PROJECT_NAME}_node
   as2_core
   as2_msgs
   geometry_msgs
+  gps_utils
 )
 
 

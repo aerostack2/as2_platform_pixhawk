@@ -72,7 +72,7 @@ private:
   rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr px4_timesync_sub_;
 
   // rclcpp::Subscription<px4_msgs::msg::BatteryState>::SharedPtr battery_sub_;
-  rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr gps_sub_;
+  rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr px4_gps_sub_;
 
   // PX4 publishers
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;

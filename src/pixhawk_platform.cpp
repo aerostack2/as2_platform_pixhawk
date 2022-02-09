@@ -657,11 +657,11 @@ void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
 
   nav_sat_fix_msg_.header.frame_id = "wgs84";
   if (msg->fix_type > 2) {  // At least 3D position
-    nav_sat_fix_msg_.status.status = sensor_msgs::NavSatStatus::STATUS_FIX;
+    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
   } else { 
-    nav_sat_fix_msg_.status.status = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
+    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
   }
-  nav_sat_fix_msg_.status.service = sensor_msgs::NavSatStatus::SERVICE_GPS;  // DEFAULT
+  nav_sat_fix_msg_.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
   nav_sat_fix_msg_.latitude = msg->lat;
   nav_sat_fix_msg_.longitude = msg->lon;
   nav_sat_fix_msg_.altitude = msg->alt_ellipsoid;
@@ -672,11 +672,11 @@ void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
     nav_sat_fix_msg_.position_covariance[0] = std::pow(msg->eph, 2);
     nav_sat_fix_msg_.position_covariance[4] = std::pow(msg->eph, 2);
     nav_sat_fix_msg_.position_covariance[8] = std::pow(msg->epv, 2);
-    nav_sat_fix_msg_.position_covariance_type = GPS::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
   } else { 
     // UNKOWN
     nav_sat_fix_msg_.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    nav_sat_fix_msg_.position_covariance_type = GPS::COVARIANCE_TYPE_UNKNOWN;
+    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
   }
 
 }

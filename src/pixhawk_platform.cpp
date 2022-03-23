@@ -8,26 +8,27 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 
   // declare subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
-    "fmu/sensor_combined/out", 1,
+    "fmu/sensor_combined/out", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4imuCallback, this, std::placeholders::_1));
 
   px4_timesync_sub_ = this->create_subscription<px4_msgs::msg::Timesync>(
-    "fmu/timesync/out", 1,
+    "fmu/timesync/out", rclcpp::SensorDataQoS(),
     [this](const px4_msgs::msg::Timesync::UniquePtr msg) { timestamp_.store(msg->timestamp); });
 
   px4_vehicle_control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>(
-    "fmu/vehicle_control_mode/out", 1,
+    "fmu/vehicle_control_mode/out", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4VehicleControlModeCallback, this, std::placeholders::_1));
 
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-      "fmu/vehicle_odometry/out", 1,
+      "fmu/vehicle_odometry/out", rclcpp::SensorDataQoS(),
       std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
 
   } else {
     // In real flights, the odometry is published by the onboard computer.
     odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-      this->generate_global_name("self_localization/odom"), 1,
+      this->generate_global_name(as2_names::topics::self_localization::odom), 
+      as2_names::topics::self_localization::qos,
       [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
 
     static auto px4_publish_vo_timer = this->create_wall_timer(
@@ -36,18 +37,18 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 
   // declare publishers
   px4_offboard_control_mode_pub_ =
-    this->create_publisher<px4_msgs::msg::OffboardControlMode>("fmu/offboard_control_mode/in", 10);
+    this->create_publisher<px4_msgs::msg::OffboardControlMode>("fmu/offboard_control_mode/in", rclcpp::SensorDataQoS());
   px4_trajectory_setpoint_pub_ =
-    this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("fmu/trajectory_setpoint/in", 10);
+    this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("fmu/trajectory_setpoint/in", rclcpp::SensorDataQoS());
   px4_vehicle_attitude_setpoint_pub_ =
     this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(
-      "fmu/vehicle_attitude_setpoint/in", 1);
+      "fmu/vehicle_attitude_setpoint/in", rclcpp::SensorDataQoS());
   px4_vehicle_rates_setpoint_pub_ =
-    this->create_publisher<px4_msgs::msg::VehicleRatesSetpoint>("fmu/vehicle_rates_setpoint/in", 1);
+    this->create_publisher<px4_msgs::msg::VehicleRatesSetpoint>("fmu/vehicle_rates_setpoint/in", rclcpp::SensorDataQoS());
   px4_vehicle_command_pub_ =
-    this->create_publisher<px4_msgs::msg::VehicleCommand>("fmu/vehicle_command/in", 10);
+    this->create_publisher<px4_msgs::msg::VehicleCommand>("fmu/vehicle_command/in", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
-    "fmu/vehicle_visual_odometry/in", 1);
+    "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
 
   // Timers
   static auto timer_commands_ =

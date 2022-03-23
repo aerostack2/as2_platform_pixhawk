@@ -39,7 +39,7 @@ def generate_launch_description():
                 "simulation_mode": LaunchConfiguration('simulation_mode'),
                 "max_thrust": LaunchConfiguration('max_thrust')
                 }],
-            remappings=[("platform/odometry", "self_localization/odom")],
+            remappings=[("sensor_measurements/odometry", "self_localization/odom")],
             condition= launch.conditions.IfCondition(LaunchConfiguration("simulation_mode"))
         ),
     

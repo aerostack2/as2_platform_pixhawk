@@ -19,6 +19,10 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
     "fmu/vehicle_control_mode/out", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4VehicleControlModeCallback, this, std::placeholders::_1));
 
+  px4_gps_sub_ = this->create_subscription<px4_msgs::msg::SensorGps>(
+    "fmu/sensor_gps/out", 1,
+    std::bind(&PixhawkPlatform::gpsCallback, this, std::placeholders::_1));
+
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
       "fmu/vehicle_odometry/out", rclcpp::SensorDataQoS(),
@@ -64,6 +68,8 @@ void PixhawkPlatform::configureSensors()
   // TODO: implement Battery Sensor for px4
   // battery_sensor_ptr_ =
   //   std::make_unique<as2::sensors::Sensor<sensor_msgs::msg::BatteryState>>("battery", this);
+  gps_sensor_ptr_ =
+    std::make_unique<as2::sensors::GPS>("gps", this);
 
   odometry_raw_estimation_ptr_ =
     std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
@@ -77,6 +83,9 @@ void PixhawkPlatform::publishSensorData()
 
   //battery_msg_.header.stamp = timestamp;
   //battery_sensor_ptr_->publishData(battery_msg_);
+
+  nav_sat_fix_msg_.header.stamp = timestamp;
+  gps_sensor_ptr_->publishData(nav_sat_fix_msg_);
 
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_msg_.header.stamp = timestamp;
@@ -639,4 +648,36 @@ void PixhawkPlatform::px4VehicleControlModeCallback(
     }
     last_arm_state = this->platform_info_msg_.armed;
   }
+}
+
+void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
+{
+  // Reference:
+  // https://github.com/PX4/PX4-Autopilot/blob/052adfbfd977abfad5b6f58d5404bba7dd209736/src/modules/mavlink/streams/GPS_RAW_INT.hpp#L58
+  // https://github.com/mavlink/mavros/blob/b392c23add8781a67ac90915278fe41086fecaeb/mavros/src/plugins/global_position.cpp#L161
+
+  nav_sat_fix_msg_.header.frame_id = "wgs84";
+  if (msg->fix_type > 2) {  // At least 3D position
+    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
+  } else { 
+    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+  }
+  nav_sat_fix_msg_.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
+  nav_sat_fix_msg_.latitude = msg->lat;
+  nav_sat_fix_msg_.longitude = msg->lon;
+  nav_sat_fix_msg_.altitude = msg->alt_ellipsoid;
+
+  if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
+    // Position uncertainty --> Diagonal known
+    nav_sat_fix_msg_.position_covariance.fill(0.0);
+    nav_sat_fix_msg_.position_covariance[0] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg_.position_covariance[4] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg_.position_covariance[8] = std::pow(msg->epv, 2);
+    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+  } else { 
+    // UNKOWN
+    nav_sat_fix_msg_.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
+  }
+
 }

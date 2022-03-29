@@ -20,7 +20,6 @@ find_package(as2_msgs REQUIRED)
 find_package(px4_ros_com REQUIRED)
 find_package(std_srvs REQUIRED)
 
-
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)

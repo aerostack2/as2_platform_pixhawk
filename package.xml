@@ -19,7 +19,6 @@
   <depend>as2_core</depend>
   <depend>as2_msgs</depend>
   <depend>px4_ros_com</depend>
-  
 
   <!-- linting test dependencies -->
   <test_depend>ament_lint_auto</test_depend>

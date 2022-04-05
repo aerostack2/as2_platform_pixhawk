@@ -36,6 +36,10 @@
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/nav_sat_status.hpp"
 
+#define CMD_FREQ 10  // miliseconds
+#define THRUST_THRESHOLD 0.001
+#define THRUST_MIN 0.15f
+
 class PixhawkPlatform : public as2::AerialPlatform
 {
 public:
@@ -71,7 +75,6 @@ private:
   rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_odometry_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleControlMode>::SharedPtr px4_vehicle_control_mode_sub_;
   rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr px4_timesync_sub_;
-
   // rclcpp::Subscription<px4_msgs::msg::BatteryState>::SharedPtr battery_sub_;
   rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr px4_gps_sub_;
 
@@ -81,9 +84,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
     px4_vehicle_attitude_setpoint_pub_;
-
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
-
   rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr px4_visual_odometry_pub_;
 
   // PX4 Functions
@@ -107,8 +108,6 @@ private:
   std::atomic<uint64_t> timestamp_;
   rclcpp::TimerBase::SharedPtr timer_;
 
-  // as2_msgs::msg::PlatformControlMode platform_control_mode_;
-
   px4_msgs::msg::VehicleControlMode px4_control_mode_;
   px4_msgs::msg::VehicleStatus px4_vehicle_status_;
   px4_msgs::msg::OffboardControlMode px4_offboard_control_mode_;
@@ -118,6 +117,7 @@ private:
   px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
 
 private:
+  // PX4 Callbacks
   void px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg);
   void px4odometryCallback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
   void px4VehicleControlModeCallback(const px4_msgs::msg::VehicleControlMode::SharedPtr msg);

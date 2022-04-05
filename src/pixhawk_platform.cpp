@@ -6,7 +6,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 {
   configureSensors();
 
-  // declare subscribers
+  // declare PX4 subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
     "fmu/sensor_combined/out", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4imuCallback, this, std::placeholders::_1));
@@ -39,7 +39,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
       std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
   }
 
-  // declare publishers
+  // declare PX4 publishers
   px4_offboard_control_mode_pub_ =
     this->create_publisher<px4_msgs::msg::OffboardControlMode>("fmu/offboard_control_mode/in", rclcpp::SensorDataQoS());
   px4_trajectory_setpoint_pub_ =
@@ -56,7 +56,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 
   // Timers
   static auto timer_commands_ =
-    this->create_wall_timer(std::chrono::milliseconds(10), [this]() { this->ownSendCommand(); });
+    this->create_wall_timer(std::chrono::milliseconds(CMD_FREQ), [this]() { this->ownSendCommand(); });
   timer_ =
     this->create_wall_timer(std::chrono::milliseconds(10), [this]() { publishSensorData(); });
 }
@@ -113,17 +113,12 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
     return false;
   }
 
-  // default control mode
-  // platform_control_mode_.yaw_mode = as2_msgs::msg::PlatformControlMode::YAW_SPEED;
-  // platform_control_mode_.control_mode = as2_msgs::msg::PlatformControlMode::ACRO_MODE;
-
-  px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();
+  px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
   px4_offboard_control_mode_.body_rate = true;
   resetRatesSetpoint();
 
-  command_changes_ = false;
-
   RCLCPP_INFO(this->get_logger(), "Switching to OFFBOARD mode");
+  // Following PX4 offboard guidelines
   rclcpp::Rate r(100);
   for (int i = 0; i < 100; i++) {
     PX4publishRatesSetpoint();
@@ -135,8 +130,6 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 
 bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::PlatformControlMode & msg)
 {
-  // return true;
-
   RCLCPP_INFO(this->get_logger(), "Setting platform control mode");
 
   px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
@@ -161,109 +154,61 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::PlatformCon
       px4_offboard_control_mode_.attitude = true;
       RCLCPP_INFO(this->get_logger(), "ATTITUDE_MODE ENABLED");
     } break;
-    case as2_msgs::msg::PlatformControlMode::ACCEL_MODE: {
-      px4_offboard_control_mode_.acceleration = true;
-      RCLCPP_INFO(this->get_logger(), "ACCEL_MODE ENABLED");
-    } break;
+    // TODO ACCEL MODE NOT IMPLEMENTED
+    // case as2_msgs::msg::PlatformControlMode::ACCEL_MODE: {
+    //   px4_offboard_control_mode_.acceleration = true;
+    //   RCLCPP_INFO(this->get_logger(), "ACCEL_MODE ENABLED");
+    // } break;
     case as2_msgs::msg::PlatformControlMode::ACRO_MODE: {
       px4_offboard_control_mode_.body_rate = true;
       RCLCPP_INFO(this->get_logger(), "ACRO_MODE ENABLED");
     } break;
     default:
+      RCLCPP_WARN(this->get_logger(), "CONTROL MODE %d NOT SUPPORTED", msg.control_mode);
       has_mode_settled_ = false;
       return false;
   }
 
   has_mode_settled_ = true;
   return true;
-};
-
-bool PixhawkPlatform::ownSendCommand()
-{
-  px4_offboard_control_mode_.body_rate = true;
-  static bool first_run = true;
-  if (first_run) {
-    px4_rates_setpoint_.roll = 0;
-    px4_rates_setpoint_.pitch = 0;
-    px4_rates_setpoint_.yaw = 0;
-
-    px4_rates_setpoint_.thrust_body[2] = -0.2f;
-
-    PX4publishRatesSetpoint();
-  }
-  if (getOffboardMode() && getArmingState()) {
-    first_run = false;
-
-    px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
-    px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
-    px4_rates_setpoint_.yaw = command_twist_msg_.twist.angular.z;
-
-    // px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;
-
-    //TODO: CLEAN THIS UP
-    if (command_thrust_msg_.thrust < 0.001) {
-      px4_rates_setpoint_.thrust_body[2] = -0.15f;
-    } else {
-      px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
-    }
-
-    PX4publishRatesSetpoint();
-  }
-  return true;
 }
 
-/*
+float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
+  Eigen::Quaterniond q_enu;
+  q_enu.w() = command_pose_msg.pose.orientation.w;
+  q_enu.x() = command_pose_msg.pose.orientation.x;
+  q_enu.y() = command_pose_msg.pose.orientation.y;
+  q_enu.z() = command_pose_msg.pose.orientation.z;
+
+  Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
+    q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+  Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
+    q_ned, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
+
+  double roll, pitch, yaw;
+  px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(
+    q_aircraft, roll, pitch, yaw);
+
+  return yaw;
+}
+
 bool PixhawkPlatform::ownSendCommand()
 {
-  // if (command_changes_){
-  if (true){
-    //TODO: implement multiple PlatformControlMode
+  as2_msgs::msg::PlatformControlMode platform_control_mode = this->getControlMode();
 
-    // switch (msg.reference_frame)
-    // {
-    // case as2_msgs::msg::PlatformControlMode::LOCAL_ENU_FRAME:
-    //   break;
-    // case as2_msgs::msg::PlatformControlMode::GLOBAL_ENU_FRAME:
-    //   msg.header.frame_id = "map";
-    //   break;
-    // case as2_msgs::msg::PlatformControlMode::BODY_FLU_FRAME:
-    //   msg.header.frame_id = "base_link";
-    //   break;
-    // }
-
-    // TODO: CREATE SUBSCRIBERS TO POSE, TWIST AND THRUST COMMANDS
-
-    if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration){
-      if (platform_control_mode_.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
-        // RCLCPP_INFO(this->get_logger(), "Computing yaw angle");
-
-        Eigen::Quaterniond q_enu;
-        q_enu.w() = this->command_pose_msg_.pose.orientation.w;
-        q_enu.x() = this->command_pose_msg_.pose.orientation.x;
-        q_enu.y() = this->command_pose_msg_.pose.orientation.y;
-        q_enu.z() = this->command_pose_msg_.pose.orientation.z;
-
-        Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
-          q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
-        Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
-          q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
-
-        double roll, pitch, yaw;
-        px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(
-          q_aircraft, roll, pitch, yaw);
-
-        px4_trajectory_setpoint_.yaw = yaw;
-
-       
-      } else
-        // TODO: Handle yaw_speed in this modes
-        px4_trajectory_setpoint_.yawspeed = command_twist_msg_.twist.angular.z;
-    
-    }
-
-
-    switch (platform_control_mode_.control_mode) {
+  // Actuator commands are published continously
+  if ( getOffboardMode() && getArmingState() )
+  {
+    // Switch case to set setpoint 
+    switch (platform_control_mode.control_mode) {
       case as2_msgs::msg::PlatformControlMode::POSITION_MODE: {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+          px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
+        } else {
+          // ENU --> NED
+          px4_trajectory_setpoint_.yawspeed = -command_twist_msg_.twist.angular.z;
+        }
+
         Eigen::Vector3d position_enu;
         position_enu.x() = this->command_pose_msg_.pose.position.x;
         position_enu.y() = this->command_pose_msg_.pose.position.y;
@@ -277,6 +222,13 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.z = position_ned.z();
       } break;
       case as2_msgs::msg::PlatformControlMode::SPEED_MODE: {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+          px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
+        } else {
+          // ENU --> NED
+          px4_trajectory_setpoint_.yawspeed = -command_twist_msg_.twist.angular.z;
+        }
+
         Eigen::Vector3d speed_enu;
         speed_enu.x() = this->command_twist_msg_.twist.linear.x;
         speed_enu.y() = this->command_twist_msg_.twist.linear.y;
@@ -290,7 +242,10 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.vz = speed_ned.z();
       } break;
       case as2_msgs::msg::PlatformControlMode::ATTITUDE_MODE :{
-        
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_SPEED) {
+          RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Speed control not supported on ATTITUDE mode");
+        }
+
         Eigen::Quaterniond q_enu;
         q_enu.w() = this->command_pose_msg_.pose.orientation.w;
         q_enu.x() = this->command_pose_msg_.pose.orientation.x;
@@ -300,94 +255,63 @@ bool PixhawkPlatform::ownSendCommand()
         Eigen::Quaterniond q_ned = px4_ros_com::frame_transforms::transform_orientation(
           q_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
         Eigen::Quaterniond q_aircraft = px4_ros_com::frame_transforms::transform_orientation(
-          q_aircraft, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
+          q_ned, px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
 
         px4_attitude_setpoint_.q_d[0] = q_aircraft.w();
         px4_attitude_setpoint_.q_d[1] = q_aircraft.x();
         px4_attitude_setpoint_.q_d[2] = q_aircraft.y();
         px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
-        px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
-
+        // minus because px4 uses NED (Z is downwards)
+        if (command_thrust_msg_.thrust < THRUST_THRESHOLD) {
+          px4_attitude_setpoint_.thrust_body[2] = -THRUST_MIN;
+        } else {
+          px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
         }
-        break;
+        } break;
       case as2_msgs::msg::PlatformControlMode::ACRO_MODE :{
-
-        // TODO: CHECK ORIENTATION
-
-        // Eigen::Vector3d angular_speed_enu(command_twist_msg_.twist.angular.x,
-        //                                   command_twist_msg_.twist.angular.y,
-        //                                   command_twist_msg_.twist.angular.z );
-
-        // std::cout << angular_speed_enu << std::endl;
-
-        // Eigen::Vector3d angular_speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
-        //   angular_speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
-
-        // px4_rates_setpoint_.roll = angular_speed_ned.x();
-        // px4_rates_setpoint_.pitch = angular_speed_ned.y();
-        // px4_rates_setpoint_.yaw = angular_speed_ned.z();
-
-        //px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
-        //px4_rates_setpoint_.pitch = command_twist_msg_.twist.angular.y;
-        // px4_rates_setpoint_.yaw = command_twist_msg_.twist.angular.z;
-        
-        px4_rates_setpoint_.roll = 0.0f;
-        px4_rates_setpoint_.pitch = 0.0f;
-        px4_rates_setpoint_.yaw = -1.0f;
-
-        px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust_normalized;  // minus because px4 uses NED (Z is downwards)
-
-        // RCLCPP_INFO(this->get_logger(), "ACRO_MODE");
-        // RCLCPP_INFO(this->get_logger(), "roll body rates : = %f", angular_speed_ned.x());
-        // RCLCPP_INFO(this->get_logger(), "pitch body rates : = %f", angular_speed_ned.y());
-        // RCLCPP_INFO(this->get_logger(), "yaw body rates : = %f", angular_speed_ned.z());
-        RCLCPP_INFO(this->get_logger(), "thrust : = %f", command_thrust_msg_.thrust_normalized);
-        
-      
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+          RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Angle control not supported on ACRO mode");
         }
-        
-      break;
 
+        // FLU --> FRD
+        px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
+        px4_rates_setpoint_.pitch = -command_twist_msg_.twist.angular.y;
+        px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
+
+        // minus because px4 uses NED (Z is downwards)
+        if (command_thrust_msg_.thrust < THRUST_THRESHOLD) {
+          px4_rates_setpoint_.thrust_body[2] = -THRUST_MIN;
+        } else {
+          px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
+        }  
+        } break;
       case as2_msgs::msg::PlatformControlMode::ACCEL_MODE :{
-        //TODO: implement this mode 
-        
+        // Mode to implement
         RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
-        return false;}
+        return false;
+        }
         break;
-
       default:
         return false;
     }
-    
-  }// end if(command_changes)
 
-  // Actuator commands are published continously
-
-  // if (platform_status_ptr_->offboard && platform_status_ptr_->armed )
-  if (true)
-  {
-    // RCLCPP_INFO(this->get_logger(), "Publishing actuator commands");
     if (px4_offboard_control_mode_.attitude)
     {
-      //RCLCPP_INFO(this->get_logger(), "Pixhawk is sending command");
-      this->PX4publishOffboardControlMode();
       this->PX4publishAttitudeSetpoint();
     }
     else if (px4_offboard_control_mode_.body_rate){
-      this->PX4publishOffboardControlMode();
       this->PX4publishRatesSetpoint();
     } 
     else if (px4_offboard_control_mode_.position || px4_offboard_control_mode_.velocity || px4_offboard_control_mode_.acceleration)
     {
-      // RCLCPP_INFO(this->get_logger(), "Publishing TrajectorySetpoint");
-      this->PX4publishOffboardControlMode();
       this->PX4publishTrajectorySetpoint();
     }
+    return true;
   }
-  return true;
-};
-*/
+  return false;
+}
+
 
 void PixhawkPlatform::resetTrajectorySetpoint()
 {
@@ -415,16 +339,15 @@ void PixhawkPlatform::resetAttitudeSetpoint()
 
   // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -0.2f};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
 };
 
 void PixhawkPlatform::resetRatesSetpoint()
 {
-  RCLCPP_INFO(this->get_logger(), "Resetting rates setpoint");
   px4_rates_setpoint_.roll = 0.0f;
   px4_rates_setpoint_.pitch = 0.0f;
   px4_rates_setpoint_.yaw = 0.0f;
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -0.2f};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
 };
 
 /** -----------------------------------------------------------------*/
@@ -434,7 +357,6 @@ void PixhawkPlatform::resetRatesSetpoint()
 /**
  * @brief Send a command to Arm the vehicle
  */
-
 void PixhawkPlatform::PX4arm() const
 {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
@@ -472,6 +394,9 @@ void PixhawkPlatform::PX4publishTrajectorySetpoint()
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
 
+/**
+ * @brief Publish a attitude setpoint
+ */
 void PixhawkPlatform::PX4publishAttitudeSetpoint()
 {
   px4_attitude_setpoint_.timestamp = timestamp_.load();
@@ -481,6 +406,9 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint()
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
 
+/**
+ * @brief Publish a vehicle rates setpoint
+ */
 void PixhawkPlatform::PX4publishRatesSetpoint()
 {
   px4_rates_setpoint_.timestamp = timestamp_.load();
@@ -528,10 +456,6 @@ void PixhawkPlatform::PX4publishVisualOdometry()
     odometry_msg_.twist.twist.linear.x, odometry_msg_.twist.twist.linear.y,
     odometry_msg_.twist.twist.linear.z);
 
-  // Eigen::Vector3d ang_vel_FLU(  odometry_msg_.twist.twist.angular.x,
-  //                               odometry_msg_.twist.twist.angular.y,
-  //                               odometry_msg_.twist.twist.angular.z);
-
   px4_visual_odometry_msg_.LOCAL_FRAME_NED;
 
   Eigen::Quaterniond q_aircraft_enu = transform_orientation(q_enu, StaticTF::AIRCRAFT_TO_BASELINK);
@@ -552,8 +476,6 @@ void PixhawkPlatform::PX4publishVisualOdometry()
   px4_visual_odometry_msg_.q[1] = q_aircraft_ned.x();
   px4_visual_odometry_msg_.q[2] = q_aircraft_ned.y();
   px4_visual_odometry_msg_.q[3] = q_aircraft_ned.z();
-
-  // TODO CHECK THIS ORIENTATION FRAMES
 
   // MINUS SIGN FOR CHANGING FLU TO FRD
   px4_visual_odometry_msg_.rollspeed = odometry_msg_.twist.twist.angular.x;

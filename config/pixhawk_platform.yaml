@@ -1,0 +1,6 @@
+# /**/pixhawk_platform: 
+/**:
+  ros__parameters:
+    uav_mass: 1.5
+    max_thrust: 20.0
+    simulation_mode: True

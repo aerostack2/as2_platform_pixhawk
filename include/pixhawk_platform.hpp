@@ -99,14 +99,9 @@ private:
 
 private:
   bool command_changes_ = false;
-  sensor_msgs::msg::Imu imu_msg_;
-  sensor_msgs::msg::BatteryState battery_msg_;
-  sensor_msgs::msg::NavSatFix nav_sat_fix_msg_;
-  nav_msgs::msg::Odometry px4_odometry_msg_;
   nav_msgs::msg::Odometry odometry_msg_;
 
   std::atomic<uint64_t> timestamp_;
-  rclcpp::TimerBase::SharedPtr timer_;
 
   px4_msgs::msg::VehicleControlMode px4_control_mode_;
   px4_msgs::msg::VehicleStatus px4_vehicle_status_;
@@ -126,4 +121,4 @@ private:
   void gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg);
 };
 
-#endif  // PIXHAWK_TEST_HPP_
+#endif  // PIXHAWK_PLATFORM_HPP_

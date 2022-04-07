@@ -57,8 +57,6 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
   // Timers
   static auto timer_commands_ =
     this->create_wall_timer(std::chrono::milliseconds(CMD_FREQ), [this]() { this->ownSendCommand(); });
-  timer_ =
-    this->create_wall_timer(std::chrono::milliseconds(10), [this]() { publishSensorData(); });
 }
 
 void PixhawkPlatform::configureSensors()
@@ -74,24 +72,6 @@ void PixhawkPlatform::configureSensors()
   odometry_raw_estimation_ptr_ =
     std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
 };
-
-void PixhawkPlatform::publishSensorData()
-{
-  auto timestamp = this->get_clock()->now();
-  imu_msg_.header.stamp = timestamp;
-  imu_sensor_ptr_->publishData(imu_msg_);
-
-  //battery_msg_.header.stamp = timestamp;
-  //battery_sensor_ptr_->publishData(battery_msg_);
-
-  nav_sat_fix_msg_.header.stamp = timestamp;
-  gps_sensor_ptr_->publishData(nav_sat_fix_msg_);
-
-  if (this->getFlagSimulationMode() == true) {
-    px4_odometry_msg_.header.stamp = timestamp;
-    odometry_raw_estimation_ptr_->publishData(px4_odometry_msg_);
-  }
-}
 
 bool PixhawkPlatform::ownSetArmingState(bool state)
 {
@@ -316,7 +296,6 @@ bool PixhawkPlatform::ownSendCommand()
   return false;
 }
 
-
 void PixhawkPlatform::resetTrajectorySetpoint()
 {
   px4_trajectory_setpoint_.x = NAN;
@@ -496,13 +475,18 @@ void PixhawkPlatform::PX4publishVisualOdometry()
 
 void PixhawkPlatform::px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg)
 {
-  imu_msg_.header.frame_id = "imu";
-  imu_msg_.linear_acceleration.x = msg->accelerometer_m_s2[0];
-  imu_msg_.linear_acceleration.y = msg->accelerometer_m_s2[1];
-  imu_msg_.linear_acceleration.z = msg->accelerometer_m_s2[2];
-  imu_msg_.angular_velocity.x = msg->gyro_rad[0];
-  imu_msg_.angular_velocity.y = msg->gyro_rad[1];
-  imu_msg_.angular_velocity.z = msg->gyro_rad[2];
+  auto timestamp = this->get_clock()->now();
+  sensor_msgs::msg::Imu imu_msg;
+  imu_msg.header.stamp = timestamp;
+  imu_msg.header.frame_id = "imu";
+  imu_msg.linear_acceleration.x = msg->accelerometer_m_s2[0];
+  imu_msg.linear_acceleration.y = msg->accelerometer_m_s2[1];
+  imu_msg.linear_acceleration.z = msg->accelerometer_m_s2[2];
+  imu_msg.angular_velocity.x = msg->gyro_rad[0];
+  imu_msg.angular_velocity.y = msg->gyro_rad[1];
+  imu_msg.angular_velocity.z = msg->gyro_rad[2];
+
+  imu_sensor_ptr_->updateData(imu_msg);
 }
 
 void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
@@ -513,8 +497,6 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
   Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
   Eigen::Vector3d angular_speed_ned(msg->rollspeed, msg->pitchspeed, msg->yawspeed);
-
-  px4_odometry_msg_.header.frame_id = "odom";
 
   Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK);
   Eigen::Quaterniond q_enu = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
@@ -528,23 +510,33 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   // utils::quaternion::quaternion_to_euler(q_enu,roll,pitch,yaw);
   // std::cout<< "roll: " << roll*(180.0f/M_PI) << "\npitch: " << pitch*(180.0f/M_PI) << "\nyaw: " << yaw*(180.0f/M_PI) << std::endl;
 
-  px4_odometry_msg_.pose.pose.position.x = pos_enu[0];
-  px4_odometry_msg_.pose.pose.position.y = pos_enu[1];
-  px4_odometry_msg_.pose.pose.position.z = pos_enu[2];
+  auto timestamp = this->get_clock()->now();
+  nav_msgs::msg::Odometry odom_msg;
 
-  px4_odometry_msg_.pose.pose.orientation.w = q_enu.w();
-  px4_odometry_msg_.pose.pose.orientation.x = q_enu.x();
-  px4_odometry_msg_.pose.pose.orientation.y = q_enu.y();
-  px4_odometry_msg_.pose.pose.orientation.z = q_enu.z();
+  odom_msg.header.stamp = timestamp;
+  odom_msg.header.frame_id = "odom";
 
-  px4_odometry_msg_.twist.twist.linear.x = vel_enu[0];
-  px4_odometry_msg_.twist.twist.linear.y = vel_enu[1];
-  px4_odometry_msg_.twist.twist.linear.z = vel_enu[2];
+  odom_msg.pose.pose.position.x = pos_enu[0];
+  odom_msg.pose.pose.position.y = pos_enu[1];
+  odom_msg.pose.pose.position.z = pos_enu[2];
+
+  odom_msg.pose.pose.orientation.w = q_enu.w();
+  odom_msg.pose.pose.orientation.x = q_enu.x();
+  odom_msg.pose.pose.orientation.y = q_enu.y();
+  odom_msg.pose.pose.orientation.z = q_enu.z();
+
+  odom_msg.twist.twist.linear.x = vel_enu[0];
+  odom_msg.twist.twist.linear.y = vel_enu[1];
+  odom_msg.twist.twist.linear.z = vel_enu[2];
 
   // TODO CHECK THIS ORIENTATION FRAMES
-  px4_odometry_msg_.twist.twist.angular.x = angular_speed_enu[0];
-  px4_odometry_msg_.twist.twist.angular.y = angular_speed_enu[1];
-  px4_odometry_msg_.twist.twist.angular.z = angular_speed_enu[2];
+  odom_msg.twist.twist.angular.x = angular_speed_enu[0];
+  odom_msg.twist.twist.angular.y = angular_speed_enu[1];
+  odom_msg.twist.twist.angular.z = angular_speed_enu[2];
+
+  if (this->getFlagSimulationMode() == true) {
+    odometry_raw_estimation_ptr_->updateData(odom_msg);
+  }
 }
 
 void PixhawkPlatform::px4VehicleControlModeCallback(
@@ -582,28 +574,33 @@ void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
   // https://github.com/PX4/PX4-Autopilot/blob/052adfbfd977abfad5b6f58d5404bba7dd209736/src/modules/mavlink/streams/GPS_RAW_INT.hpp#L58
   // https://github.com/mavlink/mavros/blob/b392c23add8781a67ac90915278fe41086fecaeb/mavros/src/plugins/global_position.cpp#L161
 
-  nav_sat_fix_msg_.header.frame_id = "wgs84";
+  auto timestamp = this->get_clock()->now();
+
+  sensor_msgs::msg::NavSatFix nav_sat_fix_msg;
+  nav_sat_fix_msg.header.stamp = timestamp;
+
+  nav_sat_fix_msg.header.frame_id = "wgs84";
   if (msg->fix_type > 2) {  // At least 3D position
-    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
+    nav_sat_fix_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
   } else { 
-    nav_sat_fix_msg_.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+    nav_sat_fix_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
   }
-  nav_sat_fix_msg_.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
-  nav_sat_fix_msg_.latitude = msg->lat;
-  nav_sat_fix_msg_.longitude = msg->lon;
-  nav_sat_fix_msg_.altitude = msg->alt_ellipsoid;
+  nav_sat_fix_msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
+  nav_sat_fix_msg.latitude = msg->lat;
+  nav_sat_fix_msg.longitude = msg->lon;
+  nav_sat_fix_msg.altitude = msg->alt_ellipsoid;
 
   if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
     // Position uncertainty --> Diagonal known
-    nav_sat_fix_msg_.position_covariance.fill(0.0);
-    nav_sat_fix_msg_.position_covariance[0] = std::pow(msg->eph, 2);
-    nav_sat_fix_msg_.position_covariance[4] = std::pow(msg->eph, 2);
-    nav_sat_fix_msg_.position_covariance[8] = std::pow(msg->epv, 2);
-    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+    nav_sat_fix_msg.position_covariance.fill(0.0);
+    nav_sat_fix_msg.position_covariance[0] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg.position_covariance[4] = std::pow(msg->eph, 2);
+    nav_sat_fix_msg.position_covariance[8] = std::pow(msg->epv, 2);
+    nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
   } else { 
     // UNKOWN
-    nav_sat_fix_msg_.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    nav_sat_fix_msg_.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
+    nav_sat_fix_msg.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
   }
-
+  gps_sensor_ptr_->updateData(nav_sat_fix_msg);
 }

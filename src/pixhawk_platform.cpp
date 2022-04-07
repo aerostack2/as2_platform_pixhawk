@@ -194,14 +194,15 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
 
 bool PixhawkPlatform::ownSendCommand()
 {
-  as2_msgs::msg::PlatformControlMode platform_control_mode = this->getControlMode();
-
   // Actuator commands are published continously
   if ( getOffboardMode() && getArmingState() )
   {
+    as2_msgs::msg::PlatformControlMode platform_control_mode = this->getControlMode();
+
     // Switch case to set setpoint 
     switch (platform_control_mode.control_mode) {
       case as2_msgs::msg::PlatformControlMode::POSITION_MODE: {
+        this->resetTrajectorySetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
           px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
         } else {
@@ -222,6 +223,7 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.z = position_ned.z();
       } break;
       case as2_msgs::msg::PlatformControlMode::SPEED_MODE: {
+        this->resetTrajectorySetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
           px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
         } else {
@@ -242,6 +244,7 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.vz = speed_ned.z();
       } break;
       case as2_msgs::msg::PlatformControlMode::ATTITUDE_MODE :{
+        this->resetAttitudeSetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_SPEED) {
           RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Speed control not supported on ATTITUDE mode");
         }
@@ -270,6 +273,7 @@ bool PixhawkPlatform::ownSendCommand()
         }
         } break;
       case as2_msgs::msg::PlatformControlMode::ACRO_MODE :{
+        this->resetRatesSetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
           RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Angle control not supported on ACRO mode");
         }

@@ -20,8 +20,12 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
     std::bind(&PixhawkPlatform::px4VehicleControlModeCallback, this, std::placeholders::_1));
 
   px4_gps_sub_ = this->create_subscription<px4_msgs::msg::SensorGps>(
-    "fmu/sensor_gps/out", 1,
-    std::bind(&PixhawkPlatform::gpsCallback, this, std::placeholders::_1));
+    "fmu/sensor_gps/out", rclcpp::SensorDataQoS(),
+    std::bind(&PixhawkPlatform::px4GpsCallback, this, std::placeholders::_1));
+
+  px4_battery_sub_ = this->create_subscription<px4_msgs::msg::BatteryStatus>(
+    "fmu/battery_status/out", rclcpp::SensorDataQoS(),
+    std::bind(&PixhawkPlatform::px4BatteryCallback, this, std::placeholders::_1));
 
   if (this->getFlagSimulationMode() == true) {
     px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
@@ -62,12 +66,8 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 void PixhawkPlatform::configureSensors()
 {
   imu_sensor_ptr_ = std::make_unique<as2::sensors::Imu>("imu", this);
-
-  // TODO: implement Battery Sensor for px4
-  // battery_sensor_ptr_ =
-  //   std::make_unique<as2::sensors::Sensor<sensor_msgs::msg::BatteryState>>("battery", this);
-  gps_sensor_ptr_ =
-    std::make_unique<as2::sensors::GPS>("gps", this);
+  battery_sensor_ptr_ = std::make_unique<as2::sensors::Battery>("battery", this);
+  gps_sensor_ptr_ = std::make_unique<as2::sensors::GPS>("gps", this);
 
   odometry_raw_estimation_ptr_ =
     std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
@@ -568,7 +568,7 @@ void PixhawkPlatform::px4VehicleControlModeCallback(
   }
 }
 
-void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
+void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
 {
   // Reference:
   // https://github.com/PX4/PX4-Autopilot/blob/052adfbfd977abfad5b6f58d5404bba7dd209736/src/modules/mavlink/streams/GPS_RAW_INT.hpp#L58
@@ -603,4 +603,40 @@ void PixhawkPlatform::gpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg)
     nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
   }
   gps_sensor_ptr_->updateData(nav_sat_fix_msg);
+}
+
+void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::SharedPtr msg)
+{
+  auto timestamp = this->get_clock()->now();
+
+  sensor_msgs::msg::BatteryState battery_msg;
+  battery_msg.header.stamp = timestamp;
+
+  battery_msg.voltage = msg->voltage_v;
+  battery_msg.temperature = msg->temperature;
+  battery_msg.current = msg->current_a;
+  battery_msg.charge = NAN;
+  battery_msg.capacity = msg->capacity;
+  battery_msg.design_capacity = msg->design_capacity;
+  battery_msg.percentage = 1.0 - msg->remaining;
+  // TODO: config file with battery settings
+  battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
+  battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN;
+  battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+  battery_msg.present = msg->connected;
+  // battery_msg.cell_voltage = msg->voltage_cell_v;
+  battery_msg.cell_voltage = {};
+  battery_msg.cell_temperature = {};
+  battery_msg.location = '0';
+  battery_msg.serial_number = std::to_string(msg->serial_number);
+
+  if (msg->warning >= 0) {
+    RCLCPP_WARN_ONCE(this->get_logger(), "Battery warning #%d", msg->warning);
+  }
+
+  // if (msg->faults >= 0) {
+  //   RCLCPP_ERROR_ONCE(this->get_logger(), "Battery error bitmask: %d", msg->faults);
+  // }
+
+  battery_sensor_ptr_->updateData(battery_msg);
 }

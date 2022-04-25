@@ -11,6 +11,7 @@ def generate_launch_description():
         DeclareLaunchArgument('mass', default_value='1.0'),
         DeclareLaunchArgument('simulation_mode', default_value='false'),
         DeclareLaunchArgument('max_thrust', default_value='0.0'),
+        DeclareLaunchArgument('control_modes_file', default_value='config/control_modes.yaml'),
         # if is not in simulation
         Node(
             package="pixhawk_platform",
@@ -22,7 +23,8 @@ def generate_launch_description():
             parameters=[
                 {"mass": LaunchConfiguration('mass'),
                 "simulation_mode": LaunchConfiguration('simulation_mode'),
-                "max_thrust": LaunchConfiguration('max_thrust')
+                "max_thrust": LaunchConfiguration('max_thrust'),
+                "control_modes_file": LaunchConfiguration('control_modes_file')
                 }],
             condition= launch.conditions.UnlessCondition(LaunchConfiguration("simulation_mode"))
         ),
@@ -37,7 +39,8 @@ def generate_launch_description():
             parameters=[
                 {"mass": LaunchConfiguration('mass'),
                 "simulation_mode": LaunchConfiguration('simulation_mode'),
-                "max_thrust": LaunchConfiguration('max_thrust')
+                "max_thrust": LaunchConfiguration('max_thrust'),
+                "control_modes_file": LaunchConfiguration('control_modes_file')
                 }],
             remappings=[("sensor_measurements/odometry", "self_localization/odom")],
             condition= launch.conditions.IfCondition(LaunchConfiguration("simulation_mode"))

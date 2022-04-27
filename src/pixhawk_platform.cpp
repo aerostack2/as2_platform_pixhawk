@@ -108,7 +108,7 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
   return true;
 };
 
-bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::PlatformControlMode & msg)
+bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg)
 {
   RCLCPP_INFO(this->get_logger(), "Setting platform control mode");
 
@@ -122,24 +122,24 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::PlatformCon
   px4_offboard_control_mode_.body_rate     ->  p ,q ,r  + T(tx,ty,tz) in multicopters tz = -Collective_Thrust */
 
   switch (msg.control_mode) {
-    case as2_msgs::msg::PlatformControlMode::POSITION_MODE: {
+    case as2_msgs::msg::ControlMode::POSITION: {
       px4_offboard_control_mode_.position = true;
       RCLCPP_INFO(this->get_logger(), "POSITION_MODE ENABLED");
     } break;
-    case as2_msgs::msg::PlatformControlMode::SPEED_MODE: {
+    case as2_msgs::msg::ControlMode::SPEED: {
       px4_offboard_control_mode_.velocity = true;
       RCLCPP_INFO(this->get_logger(), "SPEED_MODE ENABLED");
     } break;
-    case as2_msgs::msg::PlatformControlMode::ATTITUDE_MODE: {
+    case as2_msgs::msg::ControlMode::ATTITUDE: {
       px4_offboard_control_mode_.attitude = true;
       RCLCPP_INFO(this->get_logger(), "ATTITUDE_MODE ENABLED");
     } break;
     // TODO ACCEL MODE NOT IMPLEMENTED
-    // case as2_msgs::msg::PlatformControlMode::ACCEL_MODE: {
+    // case as2_msgs::msg::ControlMode::ACCEL_MODE: {
     //   px4_offboard_control_mode_.acceleration = true;
     //   RCLCPP_INFO(this->get_logger(), "ACCEL_MODE ENABLED");
     // } break;
-    case as2_msgs::msg::PlatformControlMode::ACRO_MODE: {
+    case as2_msgs::msg::ControlMode::ACRO: {
       px4_offboard_control_mode_.body_rate = true;
       RCLCPP_INFO(this->get_logger(), "ACRO_MODE ENABLED");
     } break;
@@ -177,13 +177,13 @@ bool PixhawkPlatform::ownSendCommand()
   // Actuator commands are published continously
   if ( getOffboardMode() && getArmingState() )
   {
-    as2_msgs::msg::PlatformControlMode platform_control_mode = this->getControlMode();
+    as2_msgs::msg::ControlMode platform_control_mode = this->getControlMode();
 
     // Switch case to set setpoint 
     switch (platform_control_mode.control_mode) {
-      case as2_msgs::msg::PlatformControlMode::POSITION_MODE: {
+      case as2_msgs::msg::ControlMode::POSITION: {
         this->resetTrajectorySetpoint();
-        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
           px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
         } else {
           // ENU --> NED
@@ -202,9 +202,9 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.y = position_ned.y();
         px4_trajectory_setpoint_.z = position_ned.z();
       } break;
-      case as2_msgs::msg::PlatformControlMode::SPEED_MODE: {
+      case as2_msgs::msg::ControlMode::SPEED: {
         this->resetTrajectorySetpoint();
-        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
           px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
         } else {
           // ENU --> NED
@@ -223,9 +223,9 @@ bool PixhawkPlatform::ownSendCommand()
         px4_trajectory_setpoint_.vy = speed_ned.y();
         px4_trajectory_setpoint_.vz = speed_ned.z();
       } break;
-      case as2_msgs::msg::PlatformControlMode::ATTITUDE_MODE :{
+      case as2_msgs::msg::ControlMode::ATTITUDE :{
         this->resetAttitudeSetpoint();
-        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_SPEED) {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_SPEED) {
           RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Speed control not supported on ATTITUDE mode");
         }
 
@@ -252,9 +252,9 @@ bool PixhawkPlatform::ownSendCommand()
           px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
         }
         } break;
-      case as2_msgs::msg::PlatformControlMode::ACRO_MODE :{
+      case as2_msgs::msg::ControlMode::ACRO :{
         this->resetRatesSetpoint();
-        if (platform_control_mode.yaw_mode == as2_msgs::msg::PlatformControlMode::YAW_ANGLE) {
+        if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
           RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Angle control not supported on ACRO mode");
         }
 
@@ -270,12 +270,12 @@ bool PixhawkPlatform::ownSendCommand()
           px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
         }  
         } break;
-      case as2_msgs::msg::PlatformControlMode::ACCEL_MODE :{
-        // Mode to implement
-        RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
-        return false;
-        }
-        break;
+      // case as2_msgs::msg::ControlMode::ACCEL :{
+      //   // Mode to implement
+      //   RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
+      //   return false;
+      //   }
+      //   break;
       default:
         return false;
     }

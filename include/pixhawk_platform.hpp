@@ -29,6 +29,7 @@
 #include "as2_core/sensor.hpp"
 #include "as2_core/names/topics.hpp"
 #include "as2_msgs/msg/thrust.hpp"
+#include "as2_msgs/msg/control_mode.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -54,7 +55,7 @@ public:
 
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);
-  bool ownSetPlatformControlMode(const as2_msgs::msg::PlatformControlMode & msg);
+  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg);
   bool ownSendCommand();
 
   void resetTrajectorySetpoint();

@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/build/linux-debug",
+  "command": "/usr/bin/c++  -DDEFAULT_RMW_IMPLEMENTATION=rmw_fastrtps_cpp -DRCUTILS_ENABLE_FAULT_INJECTION -DSPDLOG_COMPILED_LIB -I/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/include -isystem /home/miguel/aerostack2_ws/install/px4_ros_com/include/px4_ros_com -isystem /home/miguel/aerostack2_ws/install/px4_ros_com/include -isystem /home/miguel/aerostack2_ws/install/px4_msgs/include -isystem /home/miguel/aerostack2_ws/install/as2_core/include -isystem /home/miguel/aerostack2_ws/install/as2_msgs/include -isystem /opt/ros/foxy/include -isystem /usr/include/eigen3  -g   -std=gnu++14 -o CMakeFiles/pixhawk_platform_node.dir/src/pixhawk_platform_main.cpp.o -c /home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/src/pixhawk_platform_main.cpp",
+  "file": "/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/src/pixhawk_platform_main.cpp"
+},
+{
+  "directory": "/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/build/linux-debug",
+  "command": "/usr/bin/c++  -DDEFAULT_RMW_IMPLEMENTATION=rmw_fastrtps_cpp -DRCUTILS_ENABLE_FAULT_INJECTION -DSPDLOG_COMPILED_LIB -I/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/include -isystem /home/miguel/aerostack2_ws/install/px4_ros_com/include/px4_ros_com -isystem /home/miguel/aerostack2_ws/install/px4_ros_com/include -isystem /home/miguel/aerostack2_ws/install/px4_msgs/include -isystem /home/miguel/aerostack2_ws/install/as2_core/include -isystem /home/miguel/aerostack2_ws/install/as2_msgs/include -isystem /opt/ros/foxy/include -isystem /usr/include/eigen3  -g   -std=gnu++14 -o CMakeFiles/pixhawk_platform_node.dir/src/pixhawk_platform.cpp.o -c /home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/src/pixhawk_platform.cpp",
+  "file": "/home/miguel/aerostack2_ws/src/aerostack2/stack/hardware_interface/pixhawk_platform/src/pixhawk_platform.cpp"
+}
+]

@@ -71,7 +71,7 @@ void PixhawkPlatform::configureSensors()
 
   odometry_raw_estimation_ptr_ =
     std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
-};
+}
 
 bool PixhawkPlatform::ownSetArmingState(bool state)
 {
@@ -82,7 +82,7 @@ bool PixhawkPlatform::ownSetArmingState(bool state)
     this->PX4disarm();
   }
   return true;
-};
+}
 
 bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 {
@@ -98,7 +98,7 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
   px4_offboard_control_mode_.body_rate = true;
   resetRatesSetpoint();
 
-  RCLCPP_INFO(this->get_logger(), "Switching to OFFBOARD mode");
+  RCLCPP_DEBUG(this->get_logger(), "Switching to OFFBOARD mode");
   // Following PX4 offboard guidelines
   rclcpp::Rate r(100);
   for (int i = 0; i < 100; i++) {
@@ -107,12 +107,10 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
   }
   PX4publishOffboardControlMode();
   return true;
-};
+}
 
 bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Setting platform control mode");
-
   px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
 
   /* PIXHAWK CONTROL MODES:
@@ -319,7 +317,7 @@ void PixhawkPlatform::resetTrajectorySetpoint()
   px4_trajectory_setpoint_.acceleration = std::array<float, 3>{NAN, NAN, NAN};
   px4_trajectory_setpoint_.jerk = std::array<float, 3>{NAN, NAN, NAN};
   px4_trajectory_setpoint_.thrust = std::array<float, 3>{NAN, NAN, NAN};
-};
+}
 
 void PixhawkPlatform::resetAttitudeSetpoint()
 {
@@ -330,7 +328,7 @@ void PixhawkPlatform::resetAttitudeSetpoint()
   // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
-};
+}
 
 void PixhawkPlatform::resetRatesSetpoint()
 {
@@ -338,7 +336,7 @@ void PixhawkPlatform::resetRatesSetpoint()
   px4_rates_setpoint_.pitch = 0.0f;
   px4_rates_setpoint_.yaw = 0.0f;
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
-};
+}
 
 /** -----------------------------------------------------------------*/
 /** ------------------------- PX4 FUNCTIONS -------------------------*/
@@ -350,7 +348,7 @@ void PixhawkPlatform::resetRatesSetpoint()
 void PixhawkPlatform::PX4arm() const
 {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
-  RCLCPP_INFO(this->get_logger(), "Arm command send");
+  RCLCPP_DEBUG(this->get_logger(), "Arm command send");
 }
 
 /**
@@ -359,7 +357,7 @@ void PixhawkPlatform::PX4arm() const
 void PixhawkPlatform::PX4disarm() const
 {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0);
-  RCLCPP_INFO(this->get_logger(), "Disarm command send");
+  RCLCPP_DEBUG(this->get_logger(), "Disarm command send");
 }
 
 /**
@@ -369,7 +367,7 @@ void PixhawkPlatform::PX4disarm() const
 void PixhawkPlatform::PX4publishOffboardControlMode()
 {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
-  RCLCPP_INFO(this->get_logger(), "OFFBOARD mode enabled");
+  RCLCPP_DEBUG(this->get_logger(), "OFFBOARD mode enabled");
 }
 
 /**

@@ -8,7 +8,6 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
-#include <px4_msgs/msg/actuator_controls.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/sensor_combined.hpp>
 #include <px4_msgs/msg/timesync.hpp>
@@ -16,10 +15,8 @@
 #include <px4_msgs/msg/vehicle_attitude_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
-#include <px4_msgs/msg/vehicle_local_position_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
-#include <px4_msgs/msg/vehicle_status.hpp>
 #include <px4_msgs/msg/vehicle_visual_odometry.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
 #include <px4_msgs/msg/battery_status.hpp>
@@ -100,13 +97,10 @@ private:
 
 private:
   bool set_disarm_ = false;
-  bool command_changes_ = false;
   nav_msgs::msg::Odometry odometry_msg_;
 
   std::atomic<uint64_t> timestamp_;
 
-  px4_msgs::msg::VehicleControlMode px4_control_mode_;
-  px4_msgs::msg::VehicleStatus px4_vehicle_status_;
   px4_msgs::msg::OffboardControlMode px4_offboard_control_mode_;
   px4_msgs::msg::TrajectorySetpoint px4_trajectory_setpoint_;
   px4_msgs::msg::VehicleAttitudeSetpoint px4_attitude_setpoint_;

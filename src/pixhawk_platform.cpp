@@ -78,6 +78,7 @@ bool PixhawkPlatform::ownSetArmingState(bool state)
   if (state) {
     this->PX4arm();
   } else {
+    set_disarm_ = true;
     this->PX4disarm();
   }
   return true;
@@ -246,8 +247,11 @@ bool PixhawkPlatform::ownSendCommand()
         px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
         // minus because px4 uses NED (Z is downwards)
-        if (command_thrust_msg_.thrust < THRUST_THRESHOLD) {
+        if (command_thrust_msg_.thrust < THRUST_MIN) {
           px4_attitude_setpoint_.thrust_body[2] = -THRUST_MIN;
+          if (this->set_disarm_) {
+            px4_rates_setpoint_.thrust_body[2] = 0.0f;
+          }
         } else {
           px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
         }
@@ -264,8 +268,11 @@ bool PixhawkPlatform::ownSendCommand()
         px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
 
         // minus because px4 uses NED (Z is downwards)
-        if (command_thrust_msg_.thrust < THRUST_THRESHOLD) {
+        if (command_thrust_msg_.thrust < THRUST_MIN) {
           px4_rates_setpoint_.thrust_body[2] = -THRUST_MIN;
+          if (this->set_disarm_) {
+            px4_rates_setpoint_.thrust_body[2] = 0.0f;
+          }
         } else {
           px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
         }  

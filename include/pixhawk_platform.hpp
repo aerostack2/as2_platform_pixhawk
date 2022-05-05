@@ -39,7 +39,6 @@
 #include "sensor_msgs/msg/nav_sat_status.hpp"
 
 #define CMD_FREQ 10  // miliseconds
-#define THRUST_THRESHOLD 0.001
 #define THRUST_MIN 0.15f
 
 class PixhawkPlatform : public as2::AerialPlatform
@@ -100,6 +99,7 @@ private:
   void PX4publishVisualOdometry();
 
 private:
+  bool set_disarm_ = false;
   bool command_changes_ = false;
   nav_msgs::msg::Odometry odometry_msg_;
 

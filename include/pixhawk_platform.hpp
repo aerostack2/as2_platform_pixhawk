@@ -34,6 +34,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/nav_sat_status.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 #define CMD_FREQ 10  // miliseconds
 #define THRUST_MIN 0.15f

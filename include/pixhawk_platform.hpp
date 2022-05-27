@@ -97,6 +97,7 @@ private:
   void PX4publishVisualOdometry();
 
 private:
+  bool manual_from_operator_ = false;
   bool set_disarm_ = false;
   nav_msgs::msg::Odometry odometry_msg_;
 

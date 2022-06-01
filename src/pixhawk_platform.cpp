@@ -250,8 +250,8 @@ bool PixhawkPlatform::ownSendCommand() {
       px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
       // minus because px4 uses NED (Z is downwards)
-      if (command_thrust_msg_.thrust < min_thrust) {
-        px4_attitude_setpoint_.thrust_body[2] = -min_thrust;
+      if (command_thrust_msg_.thrust < parameters_.min_thrust) {
+        px4_attitude_setpoint_.thrust_body[2] = -parameters_.min_thrust;
         if (this->set_disarm_) {
           px4_rates_setpoint_.thrust_body[2] = 0.0f;
         }
@@ -271,8 +271,8 @@ bool PixhawkPlatform::ownSendCommand() {
       px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
 
       // minus because px4 uses NED (Z is downwards)
-      if (command_thrust_msg_.thrust < min_thrust) {
-        px4_rates_setpoint_.thrust_body[2] = -min_thrust;
+      if (command_thrust_msg_.thrust < parameters_.min_thrust) {
+        px4_rates_setpoint_.thrust_body[2] = -parameters_.min_thrust;
         if (this->set_disarm_) {
           px4_rates_setpoint_.thrust_body[2] = 0.0f;
         }

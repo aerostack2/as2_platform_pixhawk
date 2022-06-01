@@ -60,7 +60,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform()
 
   // Timers
   static auto timer_commands_ =
-    this->create_wall_timer(std::chrono::milliseconds(CMD_FREQ), [this]() { this->ownSendCommand(); });
+    this->create_wall_timer(std::chrono::duration<double>(cmd_freq_), [this]() { this->ownSendCommand(); });
 }
 
 void PixhawkPlatform::configureSensors()
@@ -79,6 +79,7 @@ bool PixhawkPlatform::ownSetArmingState(bool state)
     this->PX4arm();
   } else {
     set_disarm_ = true;
+    // TODO: wait for takeoff_status to be able to PX4 disarm
     this->PX4disarm();
   }
   return true;
@@ -245,8 +246,8 @@ bool PixhawkPlatform::ownSendCommand()
         px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
         // minus because px4 uses NED (Z is downwards)
-        if (command_thrust_msg_.thrust < THRUST_MIN) {
-          px4_attitude_setpoint_.thrust_body[2] = -THRUST_MIN;
+        if (command_thrust_msg_.thrust < parameters_.min_thrust) {
+          px4_attitude_setpoint_.thrust_body[2] = -parameters_.min_thrust;
           if (this->set_disarm_) {
             px4_rates_setpoint_.thrust_body[2] = 0.0f;
           }
@@ -266,8 +267,8 @@ bool PixhawkPlatform::ownSendCommand()
         px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
 
         // minus because px4 uses NED (Z is downwards)
-        if (command_thrust_msg_.thrust < THRUST_MIN) {
-          px4_rates_setpoint_.thrust_body[2] = -THRUST_MIN;
+        if (command_thrust_msg_.thrust < parameters_.min_thrust) {
+          px4_rates_setpoint_.thrust_body[2] = -parameters_.min_thrust;
           if (this->set_disarm_) {
             px4_rates_setpoint_.thrust_body[2] = 0.0f;
           }
@@ -325,9 +326,8 @@ void PixhawkPlatform::resetAttitudeSetpoint()
   px4_attitude_setpoint_.roll_body = NAN;
   px4_attitude_setpoint_.yaw_body = NAN;
 
-  // FIXME: HARDCODED VALUES
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -parameters_.min_thrust};
 }
 
 void PixhawkPlatform::resetRatesSetpoint()
@@ -335,7 +335,7 @@ void PixhawkPlatform::resetRatesSetpoint()
   px4_rates_setpoint_.roll = 0.0f;
   px4_rates_setpoint_.pitch = 0.0f;
   px4_rates_setpoint_.yaw = 0.0f;
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -THRUST_MIN};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -parameters_.min_thrust};
 }
 
 /** -----------------------------------------------------------------*/
@@ -645,3 +645,8 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
 
   battery_sensor_ptr_->updateData(battery_msg);
 }
+
+// TODO
+// px4TakeOffStatusCallback(){
+//   if ()
+// }

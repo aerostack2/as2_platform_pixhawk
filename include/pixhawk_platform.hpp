@@ -34,6 +34,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/nav_sat_status.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 
 class PixhawkPlatform : public as2::AerialPlatform
@@ -94,6 +95,7 @@ private:
   void PX4publishVisualOdometry();
 
 private:
+  bool manual_from_operator_ = false;
   bool set_disarm_ = false;
   nav_msgs::msg::Odometry odometry_msg_;
 

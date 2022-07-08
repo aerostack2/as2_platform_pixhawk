@@ -468,7 +468,7 @@ void PixhawkPlatform::px4imuCallback(const px4_msgs::msg::SensorCombined::Shared
   auto timestamp = this->get_clock()->now();
   sensor_msgs::msg::Imu imu_msg;
   imu_msg.header.stamp = timestamp;
-  imu_msg.header.frame_id = "imu";
+  imu_msg.header.frame_id = generateTfName(this->get_namespace(), "base_link");
   imu_msg.linear_acceleration.x = msg->accelerometer_m_s2[0];
   imu_msg.linear_acceleration.y = msg->accelerometer_m_s2[1];
   imu_msg.linear_acceleration.z = msg->accelerometer_m_s2[2];
@@ -487,24 +487,19 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
   Eigen::Vector3d angular_speed_ned(msg->rollspeed, msg->pitchspeed, msg->yawspeed);
 
-  Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK);
+  Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK); // FRD --> NED
   Eigen::Quaterniond q_enu = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
 
   Eigen::Vector3d pos_enu = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
-  Eigen::Vector3d vel_enu = transform_static_frame(vel_ned, StaticTF::NED_TO_ENU);
+  Eigen::Vector3d vel_frd = transform_static_frame(vel_ned, StaticTF::BASELINK_TO_AIRCRAFT);  // NED --> FRD
   Eigen::Vector3d angular_speed_enu =
       transform_static_frame(angular_speed_ned, StaticTF::NED_TO_ENU);
-
-  // double roll, pitch, yaw;
-  // utils::quaternion::quaternion_to_euler(q_enu,roll,pitch,yaw);
-  // std::cout<< "roll: " << roll*(180.0f/M_PI) << "\npitch: " << pitch*(180.0f/M_PI) << "\nyaw: "
-  // << yaw*(180.0f/M_PI) << std::endl;
 
   auto timestamp = this->get_clock()->now();
   nav_msgs::msg::Odometry odom_msg;
 
   odom_msg.header.stamp = timestamp;
-  odom_msg.header.frame_id = "odom";
+  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom"); // POSE: ENU
 
   odom_msg.pose.pose.position.x = pos_enu[0];
   odom_msg.pose.pose.position.y = pos_enu[1];
@@ -515,9 +510,12 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.pose.pose.orientation.y = q_enu.y();
   odom_msg.pose.pose.orientation.z = q_enu.z();
 
-  odom_msg.twist.twist.linear.x = vel_enu[0];
-  odom_msg.twist.twist.linear.y = vel_enu[1];
-  odom_msg.twist.twist.linear.z = vel_enu[2];
+  odom_msg.child_frame_id =   generateTfName(this->get_namespace(), "base_link"); // TWIST: FLU
+
+  // MINUS SIGN FOR CHANGING FRD TO FLU
+  odom_msg.twist.twist.linear.x = vel_frd[0];
+  odom_msg.twist.twist.linear.y = -vel_frd[1];
+  odom_msg.twist.twist.linear.z = -vel_frd[2];
 
   // TODO CHECK THIS ORIENTATION FRAMES
   odom_msg.twist.twist.angular.x = angular_speed_enu[0];

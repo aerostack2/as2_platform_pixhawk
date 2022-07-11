@@ -67,7 +67,7 @@ void PixhawkPlatform::configureSensors() {
   gps_sensor_ptr_ = std::make_unique<as2::sensors::GPS>("gps", this);
 
   odometry_raw_estimation_ptr_ =
-      std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odometry", this);
+      std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odom", this);
 }
 
 bool PixhawkPlatform::ownSetArmingState(bool state) {

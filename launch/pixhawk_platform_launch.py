@@ -44,7 +44,6 @@ def get_platform_node(context, *args, **kargs):
             output="screen",
             emulate_tty=True,
             parameters=[config, '/tmp/aux_config.yaml'],
-            remappings=[("sensor_measurements/odometry", "self_localization/odom")],
             condition= IfCondition(LaunchConfiguration("simulation_mode"))
         )
     else:

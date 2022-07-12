@@ -486,15 +486,29 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   using namespace px4_ros_com::frame_transforms;
   Eigen::Quaterniond q_aircraft(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
 
+  // TODO: check local_frame
   Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
-  Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
+
+  Eigen::Vector3d vel_frd;
+  if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) 
+  {
+    Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
+    vel_frd = transform_static_frame(vel_ned, StaticTF::BASELINK_TO_AIRCRAFT);  // NED --> FRD
+  } else if ( msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD)
+  {
+    vel_frd = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
+  } else
+  {
+    RCLCPP_ERROR(this->get_logger(), "PX4 velocity frame not supported.");
+    return;
+  }
+  
   Eigen::Vector3d angular_speed_ned(msg->rollspeed, msg->pitchspeed, msg->yawspeed);
 
   Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK); // FRD --> NED
   Eigen::Quaterniond q_enu = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
 
   Eigen::Vector3d pos_enu = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
-  Eigen::Vector3d vel_frd = transform_static_frame(vel_ned, StaticTF::BASELINK_TO_AIRCRAFT);  // NED --> FRD
   Eigen::Vector3d angular_speed_enu =
       transform_static_frame(angular_speed_ned, StaticTF::NED_TO_ENU);
 

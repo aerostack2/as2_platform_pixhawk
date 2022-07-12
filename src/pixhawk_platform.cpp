@@ -57,8 +57,10 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
 
   // Timers
-  static auto timer_commands_ =
-    this->create_wall_timer(std::chrono::duration<double>(cmd_freq_), [this]() { this->ownSendCommand(); });
+  double ms = (1000.0 / cmd_freq_);
+  
+  static auto timer_commands_ = this->create_wall_timer(
+      std::chrono::milliseconds((int) ms), [this]() { this->ownSendCommand(); });
 }
 
 void PixhawkPlatform::configureSensors() {
@@ -161,6 +163,7 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
 }
 
 bool PixhawkPlatform::ownSendCommand() {
+
   // Actuator commands are published continously
   if (!getArmingState()) {
     return false;

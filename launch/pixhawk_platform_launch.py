@@ -34,6 +34,7 @@ def get_platform_node(context, *args, **kargs):
     with open('/tmp/aux_config.yaml', 'w') as f:
         yaml.dump(dict, f, default_flow_style=False)
 
+    # TODO: if not needed
     if simulation_mode:
         # if is in simulation
         node = Node(

@@ -109,6 +109,10 @@ private:
   px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
   px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
 
+  float mass_;
+  float max_thrust_;
+  float min_thrust_;
+
 private:
   // PX4 Callbacks
   void px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg);

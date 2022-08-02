@@ -5,6 +5,21 @@
 PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   configureSensors();
 
+  this->declare_parameter<float>("mass");
+  mass_ = this->get_parameter("mass").as_double();
+
+
+  this->declare_parameter<float>("max_thrust");
+  max_thrust_ = this->get_parameter("max_thrust").as_double();
+
+
+  this->declare_parameter<float>("min_thrust");
+  min_thrust_ = this->get_parameter("min_thrust").as_double();
+
+  RCLCPP_INFO(this->get_logger(), "Mass: %f", mass_);
+  RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
+  RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
+
   // declare PX4 subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
       "fmu/sensor_combined/out", rclcpp::SensorDataQoS(),
@@ -253,13 +268,13 @@ bool PixhawkPlatform::ownSendCommand() {
       px4_attitude_setpoint_.q_d[3] = q_aircraft.z();
 
       // minus because px4 uses NED (Z is downwards)
-      if (command_thrust_msg_.thrust < parameters_.min_thrust) {
-        px4_attitude_setpoint_.thrust_body[2] = -parameters_.min_thrust;
+      if (command_thrust_msg_.thrust < min_thrust_) {
+        px4_attitude_setpoint_.thrust_body[2] = -min_thrust_;
         if (this->set_disarm_) {
           px4_rates_setpoint_.thrust_body[2] = 0.0f;
         }
       } else {
-        px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
+        px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / max_thrust_;
       }
     } break;
     case as2_msgs::msg::ControlMode::ACRO: {
@@ -274,13 +289,13 @@ bool PixhawkPlatform::ownSendCommand() {
       px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
 
       // minus because px4 uses NED (Z is downwards)
-      if (command_thrust_msg_.thrust < parameters_.min_thrust) {
-        px4_rates_setpoint_.thrust_body[2] = -parameters_.min_thrust;
+      if (command_thrust_msg_.thrust < min_thrust_) {
+        px4_rates_setpoint_.thrust_body[2] = -min_thrust_;
         if (this->set_disarm_) {
           px4_rates_setpoint_.thrust_body[2] = 0.0f;
         }
       } else {
-        px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / this->getMaxThrust();
+        px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / max_thrust_;
       }
     } break;
     // case as2_msgs::msg::ControlMode::ACCEL :{
@@ -327,14 +342,14 @@ void PixhawkPlatform::resetAttitudeSetpoint() {
   px4_attitude_setpoint_.yaw_body = NAN;
 
   px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -parameters_.min_thrust};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
 }
 
 void PixhawkPlatform::resetRatesSetpoint() {
   px4_rates_setpoint_.roll = 0.0f;
   px4_rates_setpoint_.pitch = 0.0f;
   px4_rates_setpoint_.yaw = 0.0f;
-  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -parameters_.min_thrust};
+  px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
 }
 
 /** -----------------------------------------------------------------*/
@@ -394,7 +409,7 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint() {
 void PixhawkPlatform::PX4publishRatesSetpoint() {
   px4_rates_setpoint_.timestamp = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();
-
+  
   px4_vehicle_rates_setpoint_pub_->publish(px4_rates_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }

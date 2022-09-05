@@ -44,7 +44,9 @@ def get_platform_node(context, *args, **kargs):
             namespace=LaunchConfiguration('drone_id'),
             output="screen",
             emulate_tty=True,
-            parameters=[config, '/tmp/aux_config.yaml'],
+            parameters=[config, 
+                        '/tmp/aux_config.yaml',
+                        {'use_sim_time': LaunchConfiguration('use_sim_time')}],
             condition= IfCondition(LaunchConfiguration("simulation_mode"))
         )
     else:
@@ -73,5 +75,6 @@ def generate_launch_description():
         DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
         DeclareLaunchArgument('config', default_value=config),
         DeclareLaunchArgument('simulation_mode', default_value='false'),
+        DeclareLaunchArgument('use_sim_time', default_value='false'),
         OpaqueFunction(function=get_platform_node)
     ])

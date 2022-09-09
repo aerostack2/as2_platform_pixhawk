@@ -636,6 +636,10 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
     nav_sat_fix_msg.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
   }
+  nav_sat_fix_msg.altitude = nav_sat_fix_msg.altitude / 1e7;
+  nav_sat_fix_msg.latitude = nav_sat_fix_msg.latitude / 1e7;
+  nav_sat_fix_msg.longitude = nav_sat_fix_msg.longitude / 1e7;
+
   gps_sensor_ptr_->updateData(nav_sat_fix_msg);
 }
 

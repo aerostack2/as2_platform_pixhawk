@@ -12,7 +12,9 @@ from ament_index_python.packages import get_package_share_directory
 
 def get_platform_node(context, *args, **kargs):
     config = LaunchConfiguration('config').perform(context)
-    simulation_mode = bool(LaunchConfiguration('simulation_mode').perform(context))
+    simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
+    simulation_mode = simulation_mode == 'true'
+    print('simulation_mode:' , simulation_mode , bool(simulation_mode))
 
     with open(config, "r") as f:
         config_params = yaml.safe_load(f)
@@ -36,6 +38,7 @@ def get_platform_node(context, *args, **kargs):
 
     # TODO: if not needed
     if simulation_mode:
+        print("SIMULATION ACTIVATED")
         # if is in simulation
         node = Node(
             package="pixhawk_platform",
@@ -51,6 +54,7 @@ def get_platform_node(context, *args, **kargs):
         )
     else:
         # if is not in simulation
+        print("REAL FLIGHTS")
         node = Node(
             package="pixhawk_platform",
             executable="pixhawk_platform_node",
@@ -58,9 +62,9 @@ def get_platform_node(context, *args, **kargs):
             namespace=LaunchConfiguration('drone_id'),
             output="screen",
             emulate_tty=True,
-            parameters=[config, '/tmp/aux_config.yaml'],
-            condition= UnlessCondition(LaunchConfiguration("simulation_mode"))
-        )
+            parameters=[config, 
+                        '/tmp/aux_config.yaml',
+                        {'use_sim_time': LaunchConfiguration('use_sim_time')}]) 
 
     return [node]
 

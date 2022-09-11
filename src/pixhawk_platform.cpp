@@ -41,20 +41,20 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "fmu/battery_status/out", rclcpp::SensorDataQoS(),
       std::bind(&PixhawkPlatform::px4BatteryCallback, this, std::placeholders::_1));
 
-  if (this->getFlagSimulationMode() == true) {
+  //if (this->getFlagSimulationMode() == true) {
     px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
         "fmu/vehicle_odometry/out", rclcpp::SensorDataQoS(),
         std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
-  } else {
+ // } else {
     // In real flights, the odometry is published by the onboard computer.
-    odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        this->generate_global_name(as2_names::topics::self_localization::odom),
-        as2_names::topics::self_localization::qos,
-        [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
+   // odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+   //     this->generate_global_name(as2_names::topics::self_localization::odom),
+   //     as2_names::topics::self_localization::qos,
+   //     [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
 
-    static auto px4_publish_vo_timer = this->create_wall_timer(
-        std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
-  }
+   // static auto px4_publish_vo_timer = this->create_wall_timer(
+   //     std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
+  //}
 
   // declare PX4 publishers
   px4_offboard_control_mode_pub_ = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
@@ -567,9 +567,9 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.twist.twist.angular.y = angular_speed_enu[1];
   odom_msg.twist.twist.angular.z = angular_speed_enu[2];
 
-  if (this->getFlagSimulationMode() == true) {
+  //if (this->getFlagSimulationMode() == true) {
     odometry_raw_estimation_ptr_->updateData(odom_msg);
-  }
+  //}
 }
 
 void PixhawkPlatform::px4VehicleControlModeCallback(

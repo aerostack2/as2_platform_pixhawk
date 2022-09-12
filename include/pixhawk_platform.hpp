@@ -28,6 +28,7 @@
 #include "as2_core/tf_utils.hpp"
 #include <as2_core/frame_utils/frame_utils.hpp>
 #include "as2_msgs/msg/thrust.hpp"
+#include "as2_msgs/msg/alert.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -113,6 +114,8 @@ private:
   float max_thrust_;
   float min_thrust_;
 
+  rclcpp::Subscription<as2_msgs::msg::Alert>::SharedPtr gps_alert_sub_;
+  bool kill_switch_ = false;
 private:
   // PX4 Callbacks
   void px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg);

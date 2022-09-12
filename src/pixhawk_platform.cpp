@@ -2,16 +2,16 @@
 
 #include "pixhawk_platform.hpp"
 
+#include <rclcpp/qos.hpp>
+
 PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   configureSensors();
 
   this->declare_parameter<float>("mass");
   mass_ = this->get_parameter("mass").as_double();
 
-
   this->declare_parameter<float>("max_thrust");
   max_thrust_ = this->get_parameter("max_thrust").as_double();
-
 
   this->declare_parameter<float>("min_thrust");
   min_thrust_ = this->get_parameter("min_thrust").as_double();
@@ -41,41 +41,48 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "fmu/battery_status/out", rclcpp::SensorDataQoS(),
       std::bind(&PixhawkPlatform::px4BatteryCallback, this, std::placeholders::_1));
 
-  //if (this->getFlagSimulationMode() == true) {
-    px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-        "fmu/vehicle_odometry/out", rclcpp::SensorDataQoS(),
-        std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
- // } else {
-    // In real flights, the odometry is published by the onboard computer.
-   // odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-   //     this->generate_global_name(as2_names::topics::self_localization::odom),
-   //     as2_names::topics::self_localization::qos,
-   //     [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
+  // if (this->getFlagSimulationMode() == true) {
+  px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
+      "fmu/vehicle_odometry/out", rclcpp::SensorDataQoS(),
+      std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
+  // } else {
+  // In real flights, the odometry is published by the onboard computer.
+  // odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+  //     this->generate_global_name(as2_names::topics::self_localization::odom),
+  //     as2_names::topics::self_localization::qos,
+  //     [this](const nav_msgs::msg::Odometry::UniquePtr msg) { this->odometry_msg_ = *msg; });
 
-   // static auto px4_publish_vo_timer = this->create_wall_timer(
-   //     std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
+  // static auto px4_publish_vo_timer = this->create_wall_timer(
+  //     std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
   //}
 
   // declare PX4 publishers
   px4_offboard_control_mode_pub_ = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
       "fmu/offboard_control_mode/in", rclcpp::SensorDataQoS());
-  px4_trajectory_setpoint_pub_ = this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-      "fmu/trajectory_setpoint/in", rclcpp::SensorDataQoS());
-  px4_vehicle_attitude_setpoint_pub_ =
-      this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(
-          "fmu/vehicle_attitude_setpoint/in", rclcpp::SensorDataQoS());
+  px4_trajectory_setpoint_pub_ =
+      this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("fmu/trajectory_setpoint/in", rclcpp::SensorDataQoS());
+  px4_vehicle_attitude_setpoint_pub_ = this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(
+      "fmu/vehicle_attitude_setpoint/in", rclcpp::SensorDataQoS());
   px4_vehicle_rates_setpoint_pub_ = this->create_publisher<px4_msgs::msg::VehicleRatesSetpoint>(
       "fmu/vehicle_rates_setpoint/in", rclcpp::SensorDataQoS());
-  px4_vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>(
-      "fmu/vehicle_command/in", rclcpp::SensorDataQoS());
+  px4_vehicle_command_pub_ =
+      this->create_publisher<px4_msgs::msg::VehicleCommand>("fmu/vehicle_command/in", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
       "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
 
   // Timers
   double ms = (1000.0 / cmd_freq_);
-  
-  static auto timer_commands_ = this->create_wall_timer(
-      std::chrono::milliseconds((int) ms), [this]() { this->ownSendCommand(); });
+
+  static auto timer_commands_ =
+      this->create_wall_timer(std::chrono::milliseconds((int)ms), [this]() { this->ownSendCommand(); });
+
+  gps_alert_sub_ = this->create_subscription<as2_msgs::msg::Alert>(
+      "alert", rclcpp::QoS(10), [this](const as2_msgs::msg::Alert::UniquePtr msg) {
+        RCLCPP_WARN(this->get_logger(), "GPS Alert: %d", msg->alert);
+        if (msg->alert == 40) {
+          kill_switch_ = true;
+        }
+      });
 }
 
 void PixhawkPlatform::configureSensors() {
@@ -83,8 +90,7 @@ void PixhawkPlatform::configureSensors() {
   battery_sensor_ptr_ = std::make_unique<as2::sensors::Battery>("battery", this);
   gps_sensor_ptr_ = std::make_unique<as2::sensors::GPS>("gps", this);
 
-  odometry_raw_estimation_ptr_ =
-      std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odom", this);
+  odometry_raw_estimation_ptr_ = std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odom", this);
 }
 
 bool PixhawkPlatform::ownSetArmingState(bool state) {
@@ -103,8 +109,7 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard) {
   // THE CONTROLLER
 
   if (offboard == false) {
-    RCLCPP_ERROR(this->get_logger(),
-                 "Turning into MANUAL Mode is not allowed from the onboard computer");
+    RCLCPP_ERROR(this->get_logger(), "Turning into MANUAL Mode is not allowed from the onboard computer");
     return false;
   }
 
@@ -178,16 +183,25 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
 }
 
 bool PixhawkPlatform::ownSendCommand() {
-
   // Actuator commands are published continously
   if (!getArmingState()) {
     return false;
   }
 
+  if (kill_switch_) {
+    RCLCPP_ERROR(this->get_logger(), "KILL SWITCH ACTIVATED");
+    px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
+    px4_offboard_control_mode_.body_rate = true;
+    resetRatesSetpoint();
+    px4_rates_setpoint_.thrust_body[2] = 0.0f;
+    PX4publishRatesSetpoint();
+    return true;
+  }
+
   if (this->getFlagSimulationMode()) {
     if (!getOffboardMode()) return false;
   } else {
-    if ((!getOffboardMode() || !has_mode_settled_)  && !manual_from_operator_) {
+    if ((!getOffboardMode() || !has_mode_settled_) && !manual_from_operator_) {
       px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
       px4_offboard_control_mode_.body_rate = true;
 
@@ -409,7 +423,7 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint() {
 void PixhawkPlatform::PX4publishRatesSetpoint() {
   px4_rates_setpoint_.timestamp = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();
-  
+
   px4_vehicle_rates_setpoint_pub_->publish(px4_rates_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
@@ -438,9 +452,8 @@ void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, f
 void PixhawkPlatform::PX4publishVisualOdometry() {
   using namespace px4_ros_com::frame_transforms;
 
-  Eigen::Quaterniond q_enu(
-      odometry_msg_.pose.pose.orientation.w, odometry_msg_.pose.pose.orientation.x,
-      odometry_msg_.pose.pose.orientation.y, odometry_msg_.pose.pose.orientation.z);
+  Eigen::Quaterniond q_enu(odometry_msg_.pose.pose.orientation.w, odometry_msg_.pose.pose.orientation.x,
+                           odometry_msg_.pose.pose.orientation.y, odometry_msg_.pose.pose.orientation.z);
 
   Eigen::Vector3d pos_enu(odometry_msg_.pose.pose.position.x, odometry_msg_.pose.pose.position.y,
                           odometry_msg_.pose.pose.position.z);
@@ -503,21 +516,20 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
   // TODO: check local_frame
   Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
-  
+
   Eigen::Vector3d angular_speed_ned(msg->rollspeed, msg->pitchspeed, msg->yawspeed);
 
-  Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK); // FRD --> NED
+  Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK);  // FRD --> NED
   Eigen::Quaterniond q_enu = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
 
   Eigen::Vector3d pos_enu = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
-  Eigen::Vector3d angular_speed_enu =
-      transform_static_frame(angular_speed_ned, StaticTF::NED_TO_ENU);
+  Eigen::Vector3d angular_speed_enu = transform_static_frame(angular_speed_ned, StaticTF::NED_TO_ENU);
 
   auto timestamp = this->get_clock()->now();
   nav_msgs::msg::Odometry odom_msg;
 
   odom_msg.header.stamp = timestamp;
-  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom"); // POSE: ENU
+  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom");  // POSE: ENU
 
   odom_msg.pose.pose.position.x = pos_enu[0];
   odom_msg.pose.pose.position.y = pos_enu[1];
@@ -528,7 +540,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.pose.pose.orientation.y = q_enu.y();
   odom_msg.pose.pose.orientation.z = q_enu.z();
 
-  odom_msg.child_frame_id =   generateTfName(this->get_namespace(), "base_link"); // TWIST: FLU
+  odom_msg.child_frame_id = generateTfName(this->get_namespace(), "base_link");  // TWIST: FLU
 
   if (this->getFlagSimulationMode() == true) {
     // Convert from NED to FLU
@@ -539,20 +551,15 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     odom_msg.twist.twist.linear.x = vel_flu[0];
     odom_msg.twist.twist.linear.y = vel_flu[1];
     odom_msg.twist.twist.linear.z = vel_flu[2];
-  }
-  else 
-  {
+  } else {
     Eigen::Vector3d vel_frd;
-    if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) 
-    {
+    if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) {
       RCLCPP_INFO(this->get_logger(), "Received LOCAL_FRAME_NED");
       Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
       vel_frd = transform_static_frame(vel_ned, StaticTF::BASELINK_TO_AIRCRAFT);  // NED --> FRD
-    } else if ( msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD)
-    {
+    } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
       vel_frd = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
-    } else
-    {
+    } else {
       RCLCPP_ERROR(this->get_logger(), "PX4 velocity frame not supported.");
       return;
     }
@@ -567,13 +574,12 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.twist.twist.angular.y = angular_speed_enu[1];
   odom_msg.twist.twist.angular.z = angular_speed_enu[2];
 
-  //if (this->getFlagSimulationMode() == true) {
-    odometry_raw_estimation_ptr_->updateData(odom_msg);
+  // if (this->getFlagSimulationMode() == true) {
+  odometry_raw_estimation_ptr_->updateData(odom_msg);
   //}
 }
 
-void PixhawkPlatform::px4VehicleControlModeCallback(
-    const px4_msgs::msg::VehicleControlMode::SharedPtr msg) {
+void PixhawkPlatform::px4VehicleControlModeCallback(const px4_msgs::msg::VehicleControlMode::SharedPtr msg) {
   static bool last_arm_state = msg->flag_armed;
   static bool last_offboard_state = msg->flag_control_offboard_enabled;
 
@@ -629,8 +635,7 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
     nav_sat_fix_msg.position_covariance[0] = std::pow(msg->eph, 2);
     nav_sat_fix_msg.position_covariance[4] = std::pow(msg->eph, 2);
     nav_sat_fix_msg.position_covariance[8] = std::pow(msg->epv, 2);
-    nav_sat_fix_msg.position_covariance_type =
-        sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+    nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
   } else {
     // UNKOWN
     nav_sat_fix_msg.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -659,8 +664,7 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
   // TODO: config file with battery settings
   battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
   battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN;
-  battery_msg.power_supply_technology =
-      sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+  battery_msg.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
   battery_msg.present = msg->connected;
   // battery_msg.cell_voltage = msg->voltage_cell_v;
   battery_msg.cell_voltage = {};

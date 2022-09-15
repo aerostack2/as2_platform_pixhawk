@@ -241,9 +241,9 @@ bool PixhawkPlatform::ownSendCommand() {
       Eigen::Vector3d position_ned = px4_ros_com::frame_transforms::transform_static_frame(
           position_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
 
-      px4_trajectory_setpoint_.position[0] = position_ned.x();
-      px4_trajectory_setpoint_.position[1] = position_ned.y();
-      px4_trajectory_setpoint_.position[2] = position_ned.z();
+      px4_trajectory_setpoint_.x = position_ned.x();
+      px4_trajectory_setpoint_.y = position_ned.y();
+      px4_trajectory_setpoint_.z = position_ned.z();
     } break;
     case as2_msgs::msg::ControlMode::SPEED: {
       this->resetTrajectorySetpoint();
@@ -262,9 +262,10 @@ bool PixhawkPlatform::ownSendCommand() {
       Eigen::Vector3d speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
           speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
 
-      px4_trajectory_setpoint_.velocity[0] = speed_ned.x();
-      px4_trajectory_setpoint_.velocity[1] = speed_ned.y();
-      px4_trajectory_setpoint_.velocity[2] = speed_ned.z();
+      px4_trajectory_setpoint_.vx = speed_ned.x();
+      px4_trajectory_setpoint_.vy = speed_ned.y();
+      px4_trajectory_setpoint_.vz = speed_ned.z();
+
     } break;
     case as2_msgs::msg::ControlMode::ATTITUDE: {
       this->resetAttitudeSetpoint();
@@ -341,8 +342,14 @@ bool PixhawkPlatform::ownSendCommand() {
 }
 
 void PixhawkPlatform::resetTrajectorySetpoint() {
-  px4_trajectory_setpoint_.position = std::array<float, 3>{NAN, NAN, NAN};
-  px4_trajectory_setpoint_.velocity = std::array<float, 3>{NAN, NAN, NAN};
+  px4_trajectory_setpoint_.x = NAN;
+  px4_trajectory_setpoint_.y = NAN;
+  px4_trajectory_setpoint_.z = NAN;
+
+  px4_trajectory_setpoint_.vx = NAN;
+  px4_trajectory_setpoint_.vy = NAN;
+  px4_trajectory_setpoint_.vz = NAN;
+
   px4_trajectory_setpoint_.acceleration = std::array<float, 3>{NAN, NAN, NAN};
   px4_trajectory_setpoint_.jerk = std::array<float, 3>{NAN, NAN, NAN};
 

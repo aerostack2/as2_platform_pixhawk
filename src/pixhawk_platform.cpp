@@ -2,6 +2,7 @@
 
 #include "pixhawk_platform.hpp"
 
+#include <px4_msgs/msg/detail/manual_control_switches__struct.hpp>
 #include <rclcpp/qos.hpp>
 
 PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
@@ -69,6 +70,8 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       this->create_publisher<px4_msgs::msg::VehicleCommand>("fmu/vehicle_command/in", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
       "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
+  px4_manual_control_switches_pub_ = this->create_publisher<px4_msgs::msg::ManualControlSwitches>(
+      "fmu/manual_control_switches/in", rclcpp::SensorDataQoS());
 
   // Timers
   double ms = (1000.0 / cmd_freq_);
@@ -190,11 +193,15 @@ bool PixhawkPlatform::ownSendCommand() {
 
   if (kill_switch_) {
     RCLCPP_ERROR(this->get_logger(), "KILL SWITCH ACTIVATED");
-    px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
+    px4_msgs::msg::ManualControlSwitches kill_switch_msg;
+    kill_switch_msg.kill_switch = true;
+    px4_manual_control_switches_pub_->publish(kill_switch_msg);
+    
+    /* px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
     px4_offboard_control_mode_.body_rate = true;
     resetRatesSetpoint();
     px4_rates_setpoint_.thrust_body[2] = 0.0f;
-    PX4publishRatesSetpoint();
+    PX4publishRatesSetpoint(); */
     return true;
   }
 

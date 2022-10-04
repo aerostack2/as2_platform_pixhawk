@@ -518,7 +518,7 @@ void PixhawkPlatform::px4imuCallback(const px4_msgs::msg::SensorCombined::Shared
   auto timestamp = this->get_clock()->now();
   sensor_msgs::msg::Imu imu_msg;
   imu_msg.header.stamp          = timestamp;
-  imu_msg.header.frame_id       = generateTfName(this->get_namespace(), "base_link");
+  imu_msg.header.frame_id       = as2::tf::generateTfName(this->get_namespace(), "base_link");
   imu_msg.linear_acceleration.x = msg->accelerometer_m_s2[0];
   imu_msg.linear_acceleration.y = msg->accelerometer_m_s2[1];
   imu_msg.linear_acceleration.z = msg->accelerometer_m_s2[2];
@@ -550,7 +550,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   nav_msgs::msg::Odometry odom_msg;
 
   odom_msg.header.stamp    = timestamp;
-  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom");  // POSE: ENU
+  odom_msg.header.frame_id = as2::tf::generateTfName(this->get_namespace(), "odom");  // POSE: ENU
 
   odom_msg.pose.pose.position.x = pos_enu[0];
   odom_msg.pose.pose.position.y = pos_enu[1];
@@ -561,13 +561,14 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.pose.pose.orientation.y = q_enu.y();
   odom_msg.pose.pose.orientation.z = q_enu.z();
 
-  odom_msg.child_frame_id = generateTfName(this->get_namespace(), "base_link");  // TWIST: FLU
+  odom_msg.child_frame_id =
+      as2::tf::generateTfName(this->get_namespace(), "base_link");  // TWIST: FLU
 
   if (this->getFlagSimulationMode() == true) {
     // Convert from NED to FLU
     Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
     Eigen::Vector3d vel_enu = Eigen::Vector3d(vel_ned.y(), vel_ned.x(), -vel_ned.z());
-    Eigen::Vector3d vel_flu = as2::FrameUtils::convertENUtoFLU(q_enu, vel_enu);
+    Eigen::Vector3d vel_flu = as2::frame::convertENUtoFLU(q_enu, vel_enu);
 
     odom_msg.twist.twist.linear.x = vel_flu[0];
     odom_msg.twist.twist.linear.y = vel_flu[1];

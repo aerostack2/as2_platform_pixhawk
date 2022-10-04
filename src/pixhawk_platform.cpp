@@ -1,4 +1,38 @@
-// "Copyright [year] <Copyright Owner>"
+/*!*******************************************************************************************
+ *  \file       pixhawk_platform.cpp
+ *  \brief      Implementation of PX4 Autopilot UAV platform
+ *  \authors    Miguel Fernández Cortizas
+ *              David Pérez Saura
+ *              Rafael Pérez Seguí
+ *              Pedro Arias Pérez
+ *
+ *  \copyright  Copyright (c) 2022 Universidad Politécnica de Madrid
+ *              All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ********************************************************************************/
 
 #include "pixhawk_platform.hpp"
 
@@ -8,10 +42,8 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   this->declare_parameter<float>("mass");
   mass_ = this->get_parameter("mass").as_double();
 
-
   this->declare_parameter<float>("max_thrust");
   max_thrust_ = this->get_parameter("max_thrust").as_double();
-
 
   this->declare_parameter<float>("min_thrust");
   min_thrust_ = this->get_parameter("min_thrust").as_double();
@@ -73,15 +105,15 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
 
   // Timers
   double ms = (1000.0 / cmd_freq_);
-  
-  static auto timer_commands_ = this->create_wall_timer(
-      std::chrono::milliseconds((int) ms), [this]() { this->ownSendCommand(); });
+
+  static auto timer_commands_ = this->create_wall_timer(std::chrono::milliseconds((int)ms),
+                                                        [this]() { this->ownSendCommand(); });
 }
 
 void PixhawkPlatform::configureSensors() {
-  imu_sensor_ptr_ = std::make_unique<as2::sensors::Imu>("imu", this);
+  imu_sensor_ptr_     = std::make_unique<as2::sensors::Imu>("imu", this);
   battery_sensor_ptr_ = std::make_unique<as2::sensors::Battery>("battery", this);
-  gps_sensor_ptr_ = std::make_unique<as2::sensors::GPS>("gps", this);
+  gps_sensor_ptr_     = std::make_unique<as2::sensors::GPS>("gps", this);
 
   odometry_raw_estimation_ptr_ =
       std::make_unique<as2::sensors::Sensor<nav_msgs::msg::Odometry>>("odom", this);
@@ -99,8 +131,8 @@ bool PixhawkPlatform::ownSetArmingState(bool state) {
 }
 
 bool PixhawkPlatform::ownSetOffboardControl(bool offboard) {
-  // TODO: CREATE A DEFAULT CONTROL MODE FOR BEING ABLE TO SWITCH TO OFFBOARD MODE BEFORE RUNNING
-  // THE CONTROLLER
+  // TODO: CREATE A DEFAULT CONTROL MODE FOR BEING ABLE TO SWITCH TO OFFBOARD
+  // MODE BEFORE RUNNING THE CONTROLLER
 
   if (offboard == false) {
     RCLCPP_ERROR(this->get_logger(),
@@ -130,9 +162,9 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode
   px4_offboard_control_mode_.position      ->  x,y,z
   px4_offboard_control_mode_.velocity      ->  vx,vy,vz
   px4_offboard_control_mode_.acceleration  ->  ax,ay,az
-  px4_offboard_control_mode_.attitude      ->  q(r,p,y) + T(tx,ty,tz) in multicopters tz =
-  -Collective_Thrust px4_offboard_control_mode_.body_rate     ->  p ,q ,r  + T(tx,ty,tz) in
-  multicopters tz = -Collective_Thrust */
+  px4_offboard_control_mode_.attitude      ->  q(r,p,y) + T(tx,ty,tz) in
+  multicopters tz = -Collective_Thrust px4_offboard_control_mode_.body_rate ->
+  p ,q ,r  + T(tx,ty,tz) in multicopters tz = -Collective_Thrust */
 
   switch (msg.control_mode) {
     case as2_msgs::msg::ControlMode::POSITION: {
@@ -178,7 +210,6 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
 }
 
 bool PixhawkPlatform::ownSendCommand() {
-
   // Actuator commands are published continously
   if (!getArmingState()) {
     return false;
@@ -187,7 +218,7 @@ bool PixhawkPlatform::ownSendCommand() {
   if (this->getFlagSimulationMode()) {
     if (!getOffboardMode()) return false;
   } else {
-    if ((!getOffboardMode() || !has_mode_settled_)  && !manual_from_operator_) {
+    if ((!getOffboardMode() || !has_mode_settled_) && !manual_from_operator_) {
       px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
       px4_offboard_control_mode_.body_rate = true;
 
@@ -284,9 +315,9 @@ bool PixhawkPlatform::ownSendCommand() {
       }
 
       // FLU --> FRD
-      px4_rates_setpoint_.roll = command_twist_msg_.twist.angular.x;
+      px4_rates_setpoint_.roll  = command_twist_msg_.twist.angular.x;
       px4_rates_setpoint_.pitch = -command_twist_msg_.twist.angular.y;
-      px4_rates_setpoint_.yaw = -command_twist_msg_.twist.angular.z;
+      px4_rates_setpoint_.yaw   = -command_twist_msg_.twist.angular.z;
 
       // minus because px4 uses NED (Z is downwards)
       if (command_thrust_msg_.thrust < min_thrust_) {
@@ -300,8 +331,8 @@ bool PixhawkPlatform::ownSendCommand() {
     } break;
     // case as2_msgs::msg::ControlMode::ACCEL :{
     //   // Mode to implement
-    //   RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not supported yet ");
-    //   return false;
+    //   RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not
+    //   supported yet "); return false;
     //   }
     //   break;
     default:
@@ -328,27 +359,27 @@ void PixhawkPlatform::resetTrajectorySetpoint() {
   px4_trajectory_setpoint_.vy = NAN;
   px4_trajectory_setpoint_.vz = NAN;
 
-  px4_trajectory_setpoint_.yaw = NAN;
+  px4_trajectory_setpoint_.yaw      = NAN;
   px4_trajectory_setpoint_.yawspeed = NAN;
 
   px4_trajectory_setpoint_.acceleration = std::array<float, 3>{NAN, NAN, NAN};
-  px4_trajectory_setpoint_.jerk = std::array<float, 3>{NAN, NAN, NAN};
-  px4_trajectory_setpoint_.thrust = std::array<float, 3>{NAN, NAN, NAN};
+  px4_trajectory_setpoint_.jerk         = std::array<float, 3>{NAN, NAN, NAN};
+  px4_trajectory_setpoint_.thrust       = std::array<float, 3>{NAN, NAN, NAN};
 }
 
 void PixhawkPlatform::resetAttitudeSetpoint() {
   px4_attitude_setpoint_.pitch_body = NAN;
-  px4_attitude_setpoint_.roll_body = NAN;
-  px4_attitude_setpoint_.yaw_body = NAN;
+  px4_attitude_setpoint_.roll_body  = NAN;
+  px4_attitude_setpoint_.yaw_body   = NAN;
 
-  px4_attitude_setpoint_.q_d = std::array<float, 4>{0, 0, 0, 1};
+  px4_attitude_setpoint_.q_d         = std::array<float, 4>{0, 0, 0, 1};
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
 }
 
 void PixhawkPlatform::resetRatesSetpoint() {
-  px4_rates_setpoint_.roll = 0.0f;
-  px4_rates_setpoint_.pitch = 0.0f;
-  px4_rates_setpoint_.yaw = 0.0f;
+  px4_rates_setpoint_.roll           = 0.0f;
+  px4_rates_setpoint_.pitch          = 0.0f;
+  px4_rates_setpoint_.yaw            = 0.0f;
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
 }
 
@@ -385,7 +416,7 @@ void PixhawkPlatform::PX4publishOffboardControlMode() {
  * @brief Publish a trajectory setpoint
  */
 void PixhawkPlatform::PX4publishTrajectorySetpoint() {
-  px4_trajectory_setpoint_.timestamp = timestamp_.load();
+  px4_trajectory_setpoint_.timestamp   = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();
 
   px4_trajectory_setpoint_pub_->publish(px4_trajectory_setpoint_);
@@ -396,7 +427,7 @@ void PixhawkPlatform::PX4publishTrajectorySetpoint() {
  * @brief Publish a attitude setpoint
  */
 void PixhawkPlatform::PX4publishAttitudeSetpoint() {
-  px4_attitude_setpoint_.timestamp = timestamp_.load();
+  px4_attitude_setpoint_.timestamp     = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();
 
   px4_vehicle_attitude_setpoint_pub_->publish(px4_attitude_setpoint_);
@@ -407,30 +438,31 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint() {
  * @brief Publish a vehicle rates setpoint
  */
 void PixhawkPlatform::PX4publishRatesSetpoint() {
-  px4_rates_setpoint_.timestamp = timestamp_.load();
+  px4_rates_setpoint_.timestamp        = timestamp_.load();
   px4_offboard_control_mode_.timestamp = timestamp_.load();
-  
+
   px4_vehicle_rates_setpoint_pub_->publish(px4_rates_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
 }
 
 /**
  * @brief Publish vehicle commands
- * @param command   Command code (matches VehicleCommand and MAVLink MAV_CMD codes)
+ * @param command   Command code (matches VehicleCommand and MAVLink MAV_CMD
+ * codes)
  * @param param1    Command parameter 1
  * @param param2    Command parameter 2
  */
 void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, float param2) const {
   px4_msgs::msg::VehicleCommand msg{};
-  msg.timestamp = timestamp_.load();
-  msg.param1 = param1;
-  msg.param2 = param2;
-  msg.command = command;
-  msg.target_system = 1;
+  msg.timestamp        = timestamp_.load();
+  msg.param1           = param1;
+  msg.param2           = param2;
+  msg.command          = command;
+  msg.target_system    = 1;
   msg.target_component = 1;
-  msg.source_system = 1;
+  msg.source_system    = 1;
   msg.source_component = 1;
-  msg.from_external = true;
+  msg.from_external    = true;
 
   px4_vehicle_command_pub_->publish(msg);
 }
@@ -470,9 +502,9 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
   px4_visual_odometry_msg_.q[3] = q_aircraft_ned.z();
 
   // MINUS SIGN FOR CHANGING FLU TO FRD
-  px4_visual_odometry_msg_.rollspeed = odometry_msg_.twist.twist.angular.x;
+  px4_visual_odometry_msg_.rollspeed  = odometry_msg_.twist.twist.angular.x;
   px4_visual_odometry_msg_.pitchspeed = -odometry_msg_.twist.twist.angular.y;
-  px4_visual_odometry_msg_.yawspeed = -odometry_msg_.twist.twist.angular.z;
+  px4_visual_odometry_msg_.yawspeed   = -odometry_msg_.twist.twist.angular.z;
 
   px4_visual_odometry_msg_.timestamp = timestamp_.load();
   px4_visual_odometry_pub_->publish(px4_visual_odometry_msg_);
@@ -485,14 +517,14 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
 void PixhawkPlatform::px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg) {
   auto timestamp = this->get_clock()->now();
   sensor_msgs::msg::Imu imu_msg;
-  imu_msg.header.stamp = timestamp;
-  imu_msg.header.frame_id = generateTfName(this->get_namespace(), "base_link");
+  imu_msg.header.stamp          = timestamp;
+  imu_msg.header.frame_id       = generateTfName(this->get_namespace(), "base_link");
   imu_msg.linear_acceleration.x = msg->accelerometer_m_s2[0];
   imu_msg.linear_acceleration.y = msg->accelerometer_m_s2[1];
   imu_msg.linear_acceleration.z = msg->accelerometer_m_s2[2];
-  imu_msg.angular_velocity.x = msg->gyro_rad[0];
-  imu_msg.angular_velocity.y = msg->gyro_rad[1];
-  imu_msg.angular_velocity.z = msg->gyro_rad[2];
+  imu_msg.angular_velocity.x    = msg->gyro_rad[0];
+  imu_msg.angular_velocity.y    = msg->gyro_rad[1];
+  imu_msg.angular_velocity.z    = msg->gyro_rad[2];
 
   imu_sensor_ptr_->updateData(imu_msg);
 }
@@ -503,10 +535,11 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
   // TODO: check local_frame
   Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
-  
+
   Eigen::Vector3d angular_speed_ned(msg->rollspeed, msg->pitchspeed, msg->yawspeed);
 
-  Eigen::Quaterniond q_ned = transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK); // FRD --> NED
+  Eigen::Quaterniond q_ned =
+      transform_orientation(q_aircraft, StaticTF::AIRCRAFT_TO_BASELINK);  // FRD --> NED
   Eigen::Quaterniond q_enu = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
 
   Eigen::Vector3d pos_enu = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
@@ -516,8 +549,8 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   auto timestamp = this->get_clock()->now();
   nav_msgs::msg::Odometry odom_msg;
 
-  odom_msg.header.stamp = timestamp;
-  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom"); // POSE: ENU
+  odom_msg.header.stamp    = timestamp;
+  odom_msg.header.frame_id = generateTfName(this->get_namespace(), "odom");  // POSE: ENU
 
   odom_msg.pose.pose.position.x = pos_enu[0];
   odom_msg.pose.pose.position.y = pos_enu[1];
@@ -528,7 +561,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   odom_msg.pose.pose.orientation.y = q_enu.y();
   odom_msg.pose.pose.orientation.z = q_enu.z();
 
-  odom_msg.child_frame_id =   generateTfName(this->get_namespace(), "base_link"); // TWIST: FLU
+  odom_msg.child_frame_id = generateTfName(this->get_namespace(), "base_link");  // TWIST: FLU
 
   if (this->getFlagSimulationMode() == true) {
     // Convert from NED to FLU
@@ -539,20 +572,15 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     odom_msg.twist.twist.linear.x = vel_flu[0];
     odom_msg.twist.twist.linear.y = vel_flu[1];
     odom_msg.twist.twist.linear.z = vel_flu[2];
-  }
-  else 
-  {
+  } else {
     Eigen::Vector3d vel_frd;
-    if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) 
-    {
+    if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) {
       RCLCPP_INFO(this->get_logger(), "Received LOCAL_FRAME_NED");
       Eigen::Vector3d vel_ned(msg->vx, msg->vy, msg->vz);
       vel_frd = transform_static_frame(vel_ned, StaticTF::BASELINK_TO_AIRCRAFT);  // NED --> FRD
-    } else if ( msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD)
-    {
+    } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
       vel_frd = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
-    } else
-    {
+    } else {
       RCLCPP_ERROR(this->get_logger(), "PX4 velocity frame not supported.");
       return;
     }
@@ -574,10 +602,10 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
 void PixhawkPlatform::px4VehicleControlModeCallback(
     const px4_msgs::msg::VehicleControlMode::SharedPtr msg) {
-  static bool last_arm_state = msg->flag_armed;
+  static bool last_arm_state      = msg->flag_armed;
   static bool last_offboard_state = msg->flag_control_offboard_enabled;
 
-  this->platform_info_msg_.armed = msg->flag_armed;
+  this->platform_info_msg_.armed    = msg->flag_armed;
   this->platform_info_msg_.offboard = msg->flag_control_offboard_enabled;
 
   if (this->platform_info_msg_.offboard != last_offboard_state) {
@@ -619,9 +647,9 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
     nav_sat_fix_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
   }
   nav_sat_fix_msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
-  nav_sat_fix_msg.latitude = msg->lat;
-  nav_sat_fix_msg.longitude = msg->lon;
-  nav_sat_fix_msg.altitude = msg->alt_ellipsoid;
+  nav_sat_fix_msg.latitude       = msg->lat;
+  nav_sat_fix_msg.longitude      = msg->lon;
+  nav_sat_fix_msg.altitude       = msg->alt_ellipsoid;
 
   if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
     // Position uncertainty --> Diagonal known
@@ -633,11 +661,12 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
         sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
   } else {
     // UNKOWN
-    nav_sat_fix_msg.position_covariance = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    nav_sat_fix_msg.position_covariance      = {-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     nav_sat_fix_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
   }
-  // nav_sat_fix_msg.altitude = nav_sat_fix_msg.altitude / 1e7; TODO: Check altitude
-  nav_sat_fix_msg.latitude = nav_sat_fix_msg.latitude / 1e7;
+  // nav_sat_fix_msg.altitude = nav_sat_fix_msg.altitude / 1e7; TODO: Check
+  // altitude
+  nav_sat_fix_msg.latitude  = nav_sat_fix_msg.latitude / 1e7;
   nav_sat_fix_msg.longitude = nav_sat_fix_msg.longitude / 1e7;
 
   gps_sensor_ptr_->updateData(nav_sat_fix_msg);
@@ -649,13 +678,13 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
   sensor_msgs::msg::BatteryState battery_msg;
   battery_msg.header.stamp = timestamp;
 
-  battery_msg.voltage = msg->voltage_v;
-  battery_msg.temperature = msg->temperature;
-  battery_msg.current = msg->current_a;
-  battery_msg.charge = NAN;
-  battery_msg.capacity = msg->capacity;
+  battery_msg.voltage         = msg->voltage_v;
+  battery_msg.temperature     = msg->temperature;
+  battery_msg.current         = msg->current_a;
+  battery_msg.charge          = NAN;
+  battery_msg.capacity        = msg->capacity;
   battery_msg.design_capacity = msg->design_capacity;
-  battery_msg.percentage = 1.0 - msg->remaining;
+  battery_msg.percentage      = 1.0 - msg->remaining;
   // TODO: config file with battery settings
   battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
   battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN;
@@ -663,17 +692,18 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
       sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
   battery_msg.present = msg->connected;
   // battery_msg.cell_voltage = msg->voltage_cell_v;
-  battery_msg.cell_voltage = {};
+  battery_msg.cell_voltage     = {};
   battery_msg.cell_temperature = {};
-  battery_msg.location = '0';
-  battery_msg.serial_number = std::to_string(msg->serial_number);
+  battery_msg.location         = '0';
+  battery_msg.serial_number    = std::to_string(msg->serial_number);
 
   if (msg->warning >= 0) {
     RCLCPP_WARN_ONCE(this->get_logger(), "Battery warning #%d", msg->warning);
   }
 
   // if (msg->faults >= 0) {
-  //   RCLCPP_ERROR_ONCE(this->get_logger(), "Battery error bitmask: %d", msg->faults);
+  //   RCLCPP_ERROR_ONCE(this->get_logger(), "Battery error bitmask: %d",
+  //   msg->faults);
   // }
 
   battery_sensor_ptr_->updateData(battery_msg);

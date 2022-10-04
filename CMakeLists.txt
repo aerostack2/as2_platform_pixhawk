@@ -2,83 +2,65 @@ cmake_minimum_required(VERSION 3.5)
 set(PROJECT_NAME pixhawk_platform)
 project(${PROJECT_NAME})
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(px4_msgs REQUIRED)
-find_package(as2_core REQUIRED)
-find_package(as2_msgs REQUIRED)
-find_package(px4_ros_com REQUIRED)
-find_package(std_srvs REQUIRED)
-
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-set(SOURCE_CPP_FILES 
-  src/pixhawk_platform.cpp
-)
-set(HEADER_HPP_FILES
-  include/pixhawk_platform.hpp
-)
-
-include_directories(
-  include
-)
-
-add_executable(${PROJECT_NAME}_node src/pixhawk_platform_main.cpp ${SOURCE_CPP_FILES} ${HEADER_HPP_FILES})
-ament_target_dependencies(${PROJECT_NAME}_node 
-  rclcpp 
-  sensor_msgs 
-  std_msgs
+set(PROJECT_DEPENDENCIES
+  ament_cmake
+  rclcpp
+  as2_core
+  as2_msgs
   std_srvs
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  tf2_geometry_msgs
   nav_msgs
   px4_msgs
   px4_ros_com
-  as2_core
-  as2_msgs
-  geometry_msgs
-  tf2_geometry_msgs
 )
 
+foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
+  find_package(${DEPENDENCY} REQUIRED)
+endforeach()
+
+include_directories(
+  include
+  include/${PROJECT_NAME}
+
+  # uncomment if using Eigen3
+  # {EIGEN3_INCLUDE_DIRS}
+)
+
+set(SOURCE_CPP_FILES
+  src/pixhawk_platform.cpp
+)
+
+add_executable(${PROJECT_NAME}_node src/pixhawk_platform_main.cpp ${SOURCE_CPP_FILES})
+
+ament_target_dependencies(${PROJECT_NAME}_node ${PROJECT_DEPENDENCIES})
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_cpplint REQUIRED)
   find_package(ament_cmake_cppcheck REQUIRED)
   find_package(ament_cmake_clang_format REQUIRED)
-  
-  ament_cpplint(src/ include/)
-  ament_cppcheck(src/ include/)
-  ament_clang_format(src/ include/)
 
+  ament_cppcheck(src/ include/ tests/)
+  ament_clang_format(src/ include/ tests/ --config ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)
 endif()
 
-install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY
   config
-  DESTINATION share/${PROJECT_NAME}
-)
+  DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME})
-
-# if(BUILD_TESTING)
-#   find_package(ament_lint_auto REQUIRED)
-#   ament_lint_auto_find_test_dependencies()
-# endif()
 
 ament_package()

@@ -1,4 +1,38 @@
-// "Copyright [year] <Copyright Owner>"
+/*!*******************************************************************************************
+ *  \file       pixhawk_platform.hpp
+ *  \brief      Implementation of PX4 Autopilot UAV platform
+ *  \authors    Miguel Fernández Cortizas
+ *              David Pérez Saura
+ *              Rafael Pérez Seguí
+ *              Pedro Arias Pérez
+ *
+ *  \copyright  Copyright (c) 2022 Universidad Politécnica de Madrid
+ *              All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ********************************************************************************/
 
 #ifndef PIXHAWK_PLATFORM_HPP_
 #define PIXHAWK_PLATFORM_HPP_
@@ -8,8 +42,10 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <px4_msgs/msg/battery_status.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/sensor_combined.hpp>
+#include <px4_msgs/msg/sensor_gps.hpp>
 #include <px4_msgs/msg/timesync.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_attitude_setpoint.hpp>
@@ -18,17 +54,15 @@
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_visual_odometry.hpp>
-#include <px4_msgs/msg/sensor_gps.hpp>
-#include <px4_msgs/msg/battery_status.hpp>
 #include <string>
 
-#include "as2_core/aerial_platform.hpp"
-#include "as2_core/sensor.hpp"
-#include "as2_core/names/topics.hpp"
-#include "as2_core/tf_utils.hpp"
 #include <as2_core/frame_utils/frame_utils.hpp>
-#include "as2_msgs/msg/thrust.hpp"
+#include "as2_core/aerial_platform.hpp"
+#include "as2_core/names/topics.hpp"
+#include "as2_core/sensor.hpp"
+#include "as2_core/tf_utils.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
+#include "as2_msgs/msg/thrust.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -38,21 +72,21 @@
 #include "sensor_msgs/msg/nav_sat_status.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-
-class PixhawkPlatform : public as2::AerialPlatform
-{
+class PixhawkPlatform : public as2::AerialPlatform {
 public:
   PixhawkPlatform();
+  ~PixhawkPlatform(){};
 
+public:
   void configureSensors();
   void publishSensorData();
 
-  //TODO: set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
+  // TODO: set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
   void setDefaultControlMode(){};
 
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);
-  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg);
+  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   bool ownSendCommand();
 
   void resetTrajectorySetpoint();
@@ -82,7 +116,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
-    px4_vehicle_attitude_setpoint_pub_;
+      px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr px4_visual_odometry_pub_;
 
@@ -98,7 +132,7 @@ private:
 
 private:
   bool manual_from_operator_ = false;
-  bool set_disarm_ = false;
+  bool set_disarm_           = false;
   nav_msgs::msg::Odometry odometry_msg_;
 
   std::atomic<uint64_t> timestamp_;

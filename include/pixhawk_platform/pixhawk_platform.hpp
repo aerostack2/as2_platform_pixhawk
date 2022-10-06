@@ -86,11 +86,14 @@ public:
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
+  void sendCommand() override;
   bool ownSendCommand();
 
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
   void resetRatesSetpoint();
+
+  bool getFlagSimulationMode();
 
 private:
   bool has_mode_settled_ = false;
@@ -145,6 +148,7 @@ private:
   float mass_;
   float max_thrust_;
   float min_thrust_;
+  bool simulation_mode_ = false;
 
 private:
   // PX4 Callbacks

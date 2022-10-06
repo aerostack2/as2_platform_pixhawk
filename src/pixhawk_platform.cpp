@@ -48,9 +48,13 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   this->declare_parameter<float>("min_thrust");
   min_thrust_ = this->get_parameter("min_thrust").as_double();
 
+  this->declare_parameter<bool>("simulation_mode");
+  simulation_mode_ = this->get_parameter("simulation_mode").as_bool();
+
   RCLCPP_INFO(this->get_logger(), "Mass: %f", mass_);
   RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
   RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
+  RCLCPP_INFO(this->get_logger(), "Simulation mode: %s", simulation_mode_ ? "true" : "false");
 
   // declare PX4 subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
@@ -102,12 +106,6 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "fmu/vehicle_command/in", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
       "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
-
-  // Timers
-  double ms = (1000.0 / cmd_freq_);
-
-  static auto timer_commands_ = this->create_wall_timer(std::chrono::milliseconds((int)ms),
-                                                        [this]() { this->ownSendCommand(); });
 }
 
 void PixhawkPlatform::configureSensors() {
@@ -209,14 +207,14 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
   return -yaw + M_PI_2;
 }
 
-bool PixhawkPlatform::ownSendCommand() {
+void PixhawkPlatform::sendCommand() {
   // Actuator commands are published continously
   if (!getArmingState()) {
-    return false;
+    return;
   }
 
   if (this->getFlagSimulationMode()) {
-    if (!getOffboardMode()) return false;
+    if (!getOffboardMode()) return;
   } else {
     if ((!getOffboardMode() || !has_mode_settled_) && !manual_from_operator_) {
       px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
@@ -226,10 +224,14 @@ bool PixhawkPlatform::ownSendCommand() {
       px4_rates_setpoint_.thrust_body[2] = -0.1f;
 
       PX4publishRatesSetpoint();
-      return true;
+      return;
     }
   }
+  ownSendCommand();
+  return;
+}
 
+bool PixhawkPlatform::ownSendCommand() {
   as2_msgs::msg::ControlMode platform_control_mode = this->getControlMode();
 
   // Switch case to set setpoint
@@ -709,6 +711,8 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
 
   battery_sensor_ptr_->updateData(battery_msg);
 }
+
+bool PixhawkPlatform::getFlagSimulationMode() { return simulation_mode_; }
 
 // TODO
 // px4TakeOffStatusCallback(){

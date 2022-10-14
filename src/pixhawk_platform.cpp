@@ -76,6 +76,20 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   static auto timer_commands_ =
       this->create_wall_timer(std::chrono::milliseconds((int)ms), [this]() { this->ownSendCommand(); });
 
+  double gps_seconds = 5.0;
+
+  static auto timer_gps_msgs =
+    this->create_wall_timer(std::chrono::seconds((int)gps_seconds), [this]() { 
+        if (this->gps_received_) 
+        {
+          this->gps_received_ = false;
+        }
+        else
+        {
+          this->gps_fail_ = true;
+        }    
+      });
+
   gps_alert_sub_ = this->create_subscription<as2_msgs::msg::Alert>(
       "alert", rclcpp::QoS(10), [this](const as2_msgs::msg::Alert::UniquePtr msg) {
         RCLCPP_WARN(this->get_logger(), "GPS Alert: %d", msg->alert);
@@ -198,6 +212,12 @@ bool PixhawkPlatform::ownSendCommand() {
     return true;
   }
 
+  if (gps_fail_){
+    RCLCPP_ERROR(this->get_logger(), "GPS LOST FOR %d", );
+    emergencyLanding();
+    return true;
+  }
+          
   if (this->getFlagSimulationMode()) {
     if (!getOffboardMode()) return false;
   } else {
@@ -364,6 +384,42 @@ void PixhawkPlatform::resetRatesSetpoint() {
   px4_rates_setpoint_.pitch = 0.0f;
   px4_rates_setpoint_.yaw = 0.0f;
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
+}
+
+void PixhawkPlatform::emergencyLanding()
+{
+  RCLCPP_WARN(get_logger(),"EMERGENCY LANDING ACTIVATED");
+
+  float emergency_landing_speed = 0.5;
+
+    px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
+    // px4_offboard_control_mode_.body_rate = true;
+    // resetRatesSetpoint();
+    // px4_rates_setpoint_.thrust_body[2] = 0.0f;
+    // PX4publishRatesSetpoint();
+    // return true;
+
+  as2_msgs::msg::ControlMode platform_control_mode = this->getControlMode();
+  this->resetTrajectorySetpoint();
+  if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
+    px4_trajectory_setpoint_.yaw = yawEnuToAircraft(this->command_pose_msg_);
+  } else {
+    // ENU --> NED
+    px4_trajectory_setpoint_.yawspeed = -command_twist_msg_.twist.angular.z;
+  }
+
+  Eigen::Vector3d speed_enu;
+  speed_enu.x() = this->command_twist_msg_.twist.linear.x;
+  speed_enu.y() = this->command_twist_msg_.twist.linear.y;
+  speed_enu.z() = this->command_twist_msg_.twist.linear.z;
+
+  Eigen::Vector3d speed_ned = px4_ros_com::frame_transforms::transform_static_frame(
+      speed_enu, px4_ros_com::frame_transforms::StaticTF::ENU_TO_NED);
+
+  px4_trajectory_setpoint_.vx = 0.0;
+  px4_trajectory_setpoint_.vy = 0.0;
+  px4_trajectory_setpoint_.vz = -emergency_landing_speed;
+
 }
 
 /** -----------------------------------------------------------------*/
@@ -646,6 +702,8 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
   nav_sat_fix_msg.longitude = nav_sat_fix_msg.longitude / 1e7;
 
   gps_sensor_ptr_->updateData(nav_sat_fix_msg);
+
+  gps_received_ = true;
 }
 
 void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::SharedPtr msg) {

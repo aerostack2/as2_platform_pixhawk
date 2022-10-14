@@ -60,6 +60,8 @@ public:
   void resetAttitudeSetpoint();
   void resetRatesSetpoint();
 
+  void emergencyLanding();
+
 private:
   bool has_mode_settled_ = false;
 
@@ -116,6 +118,9 @@ private:
 
   rclcpp::Subscription<as2_msgs::msg::Alert>::SharedPtr gps_alert_sub_;
   bool kill_switch_ = false;
+  bool gps_received_ = false;
+  bool gps_fail_ = false;
+
 private:
   // PX4 Callbacks
   void px4imuCallback(const px4_msgs::msg::SensorCombined::SharedPtr msg);

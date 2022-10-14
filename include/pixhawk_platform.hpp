@@ -20,6 +20,7 @@
 #include <px4_msgs/msg/vehicle_visual_odometry.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
 #include <px4_msgs/msg/battery_status.hpp>
+#include <px4_msgs/msg/manual_control_switches.hpp>
 #include <string>
 
 #include "as2_core/aerial_platform.hpp"
@@ -84,6 +85,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
+  rclcpp::Publisher<px4_msgs::msg::ManualControlSwitches>::SharedPtr px4_manual_control_switches_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
     px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;

@@ -9,12 +9,8 @@ import yaml
 from os.path import join
 from ament_index_python.packages import get_package_share_directory
 
-
 def get_platform_node(context, *args, **kargs):
     config = LaunchConfiguration('config').perform(context)
-    simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
-    simulation_mode = simulation_mode == 'true'
-    print('simulation_mode:' , simulation_mode , bool(simulation_mode))
 
     with open(config, "r") as f:
         config_params = yaml.safe_load(f)
@@ -30,41 +26,23 @@ def get_platform_node(context, *args, **kargs):
             'config', 'control_modes.yaml'
         )
 
-    dict = {'/**': {'ros__parameters': {'simulation_mode': simulation_mode, 
-                                        'control_modes_file': f'{control_modes_file}'}
+    dict = {'/**': {'ros__parameters': {'control_modes_file': f'{control_modes_file}'}
             }}
     with open('/tmp/aux_config.yaml', 'w') as f:
         yaml.dump(dict, f, default_flow_style=False)
 
-    # TODO: if not needed
-    if simulation_mode:
-        print("SIMULATION ACTIVATED")
-        # if is in simulation
-        node = Node(
-            package="pixhawk_platform",
-            executable="pixhawk_platform_node",
-            name="platform",
-            namespace=LaunchConfiguration('drone_id'),
-            output="screen",
-            emulate_tty=True,
-            parameters=[config, 
-                        '/tmp/aux_config.yaml',
-                        {'use_sim_time': LaunchConfiguration('use_sim_time')}],
-            condition= IfCondition(LaunchConfiguration("simulation_mode"))
-        )
-    else:
-        # if is not in simulation
-        print("REAL FLIGHTS")
-        node = Node(
-            package="pixhawk_platform",
-            executable="pixhawk_platform_node",
-            name="platform",
-            namespace=LaunchConfiguration('drone_id'),
-            output="screen",
-            emulate_tty=True,
-            parameters=[config, 
-                        '/tmp/aux_config.yaml',
-                        {'use_sim_time': LaunchConfiguration('use_sim_time')}]) 
+    # if is in simulation
+    node = Node(
+        package="pixhawk_platform",
+        executable="pixhawk_platform_node",
+        name="platform",
+        namespace=LaunchConfiguration('drone_id'),
+        output="screen",
+        emulate_tty=True,
+        parameters=[config, 
+                    '/tmp/aux_config.yaml',
+                    {'use_sim_time': LaunchConfiguration('use_sim_time')}],
+    )
 
     return [node]
 
@@ -78,7 +56,6 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
         DeclareLaunchArgument('config', default_value=config),
-        DeclareLaunchArgument('simulation_mode', default_value='false'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         OpaqueFunction(function=get_platform_node)
     ])

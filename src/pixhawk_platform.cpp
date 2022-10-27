@@ -48,13 +48,11 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   this->declare_parameter<float>("min_thrust");
   min_thrust_ = this->get_parameter("min_thrust").as_double();
 
-  this->declare_parameter<bool>("simulation_mode");
-  simulation_mode_ = this->get_parameter("simulation_mode").as_bool();
-
   RCLCPP_INFO(this->get_logger(), "Mass: %f", mass_);
   RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
   RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
-  RCLCPP_INFO(this->get_logger(), "Simulation mode: %s", simulation_mode_ ? "true" : "false");
+  RCLCPP_INFO(this->get_logger(), "Simulation mode: %s",
+              this->get_parameter("use_sim_time").as_bool() ? "true" : "false");
 
   // declare PX4 subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
@@ -712,7 +710,10 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
   battery_sensor_ptr_->updateData(battery_msg);
 }
 
-bool PixhawkPlatform::getFlagSimulationMode() { return simulation_mode_; }
+bool PixhawkPlatform::getFlagSimulationMode() {
+  // TODO: check if this is better than creating a variable to store the value
+  return this->get_parameter("use_sim_time").as_bool();
+}
 
 // TODO
 // px4TakeOffStatusCallback(){

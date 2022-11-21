@@ -103,7 +103,9 @@ private:
   std::unique_ptr<as2::sensors::Sensor<nav_msgs::msg::Odometry>> odometry_raw_estimation_ptr_;
   std::unique_ptr<as2::sensors::GPS> gps_sensor_ptr_;
 
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_sub_;
+  std::shared_ptr<as2::tf::TfHandler> tf_handler_;
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr external_odometry_sub_;
+  void externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
 
   // PX4 subscribers
   rclcpp::Subscription<px4_msgs::msg::SensorCombined>::SharedPtr px4_imu_sub_;
@@ -149,6 +151,7 @@ private:
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;
+  bool external_odom_   = true;
 
 private:
   // PX4 Callbacks

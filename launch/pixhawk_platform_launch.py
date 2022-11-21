@@ -1,19 +1,20 @@
-from launch import LaunchDescription
+"""Launch Pixhawk platform node"""
+from os.path import join
+import yaml
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, EnvironmentVariable, PathJoinSubstitution
-from launch_ros.substitutions import FindPackageShare
-from launch.conditions import IfCondition
+from launch import LaunchDescription
 
-import yaml
-from os.path import join
-from ament_index_python.packages import get_package_share_directory
 
-def get_platform_node(context, *args, **kargs):
+def get_platform_node(context):
+    """Build pixhawk platform node"""
     config = LaunchConfiguration('config').perform(context)
 
-    with open(config, "r") as f:
-        config_params = yaml.safe_load(f)
+    with open(config, "r", encoding='utf-8') as file_:
+        config_params = yaml.safe_load(file_)
 
     try:
         control_modes_file = config_params["/**"]["ros__parameters"]["control_modes_file"]
@@ -26,36 +27,42 @@ def get_platform_node(context, *args, **kargs):
             'config', 'control_modes.yaml'
         )
 
-    dict = {'/**': {'ros__parameters': {'control_modes_file': f'{control_modes_file}'}
-            }}
-    with open('/tmp/aux_config.yaml', 'w') as f:
-        yaml.dump(dict, f, default_flow_style=False)
+    dict_ = {'/**': {'ros__parameters': {'control_modes_file': f'{control_modes_file}'}
+                     }}
+    with open('/tmp/aux_config.yaml', 'w', encoding='utf-8') as file_:
+        yaml.dump(dict_, file_, default_flow_style=False)
 
-    # if is in simulation
     node = Node(
         package="pixhawk_platform",
         executable="pixhawk_platform_node",
         name="platform",
-        namespace=LaunchConfiguration('drone_id'),
+        namespace=LaunchConfiguration('namespace'),
         output="screen",
         emulate_tty=True,
-        parameters=[config, 
+        parameters=[config,
                     '/tmp/aux_config.yaml',
-                    {'use_sim_time': LaunchConfiguration('use_sim_time')}],
+                    {'use_sim_time': LaunchConfiguration('use_sim_time'),
+                     'external_odom': LaunchConfiguration('external_odom')}],
     )
 
     return [node]
 
 
 def generate_launch_description():
+    """Entrypoint"""
     config = PathJoinSubstitution([
         FindPackageShare('pixhawk_platform'),
         'config', 'platform_default.yaml'
     ])
 
     return LaunchDescription([
-        DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
-        DeclareLaunchArgument('config', default_value=config),
-        DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('namespace', default_value=EnvironmentVariable(
+            'AEROSTACK2_SIMULATION_DRONE_ID'), description='Drone namespace'),
+        DeclareLaunchArgument('config', default_value=config,
+                              description='Configuration file'),
+        DeclareLaunchArgument('use_sim_time', default_value='false', choices=[
+                              'true', 'false'], description='Use simulation time'),
+        DeclareLaunchArgument('external_odom', default_value='true', choices=[
+                              'true', 'false'], description='Use external odometry'),
         OpaqueFunction(function=get_platform_node)
     ])

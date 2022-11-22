@@ -49,6 +49,10 @@ if(BUILD_TESTING)
 
   ament_cppcheck(src/ include/ tests/)
   ament_clang_format(src/ include/ tests/ --config ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)
+
+  include(tests/profiling_test.cmake)
+  include(tests/unit_test.cmake)
+  include(tests/odom_test.cmake)
 endif()
 
 install(DIRECTORY

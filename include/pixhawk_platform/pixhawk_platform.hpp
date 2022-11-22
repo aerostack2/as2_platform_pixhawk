@@ -89,7 +89,9 @@ public:
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   void sendCommand() override;
   bool ownSendCommand();
-
+  void ownKillSwitch() override {};
+  void ownStopPlatform() override {};
+    
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
   void resetRatesSetpoint();

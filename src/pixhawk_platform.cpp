@@ -572,22 +572,21 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
     // Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_NED)
     // q_offset Quaternion rotation from odometry reference frame to navigation frame
-    tf2::Matrix3x3 FRD2FLU(1, 0, 0, 0, -1, 0, 0, 0, -1);
-    tf2::Quaternion h_frd2flu;
-    FRD2FLU.getRotation(h_frd2flu);
+    tf2::Quaternion q_ned2enu;
+    const tf2::Matrix3x3 NED2ENU(0, 1, 0, 1, 0, 0, 0, 0, -1);
+    NED2ENU.getRotation(q_ned2enu);
 
-    tf2::Matrix3x3 NED2ENU(0, 1, 0, 1, 0, 0, 0, 0, -1);
-    tf2::Quaternion h_ned2enu;
-    NED2ENU.getRotation(h_ned2enu);
+    const tf2::Matrix3x3 FRD2FLU(1, 0, 0, 0, -1, 0, 0, 0, -1);
+    tf2::Quaternion q_frd2flu;
+    FRD2FLU.getRotation(q_frd2flu);
 
-    tf2::Quaternion q_ned(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
-    tf2::Quaternion q_enu = h_frd2flu * h_ned2enu * q_ned;
-    // Eigen::Quaterniond q_ned(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
-    // Eigen::Quaterniond q_enu         = transform_orientation(q_ned, StaticTF::NED_TO_ENU);
-    odom_msg.pose.pose.orientation.w = q_enu.w();  // + msg->q_offset[0];
-    odom_msg.pose.pose.orientation.x = q_enu.x();  // + msg->q_offset[1];
-    odom_msg.pose.pose.orientation.y = q_enu.y();  // + msg->q_offset[2];
-    odom_msg.pose.pose.orientation.z = q_enu.z();  // + msg->q_offset[3];
+    tf2::Quaternion q_ned(msg->q[1], msg->q[2], msg->q[3], msg->q[0]);
+    tf2::Quaternion q_frd            = q_ned2enu * q_ned;
+    tf2::Quaternion q_flu            = q_frd * q_frd2flu;
+    odom_msg.pose.pose.orientation.w = q_flu.w();
+    odom_msg.pose.pose.orientation.x = q_flu.x();
+    odom_msg.pose.pose.orientation.y = q_flu.y();
+    odom_msg.pose.pose.orientation.z = q_flu.z();
   } else if (msg->local_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
     Eigen::Vector3d pos_frd(msg->x, msg->y, msg->z);
     Eigen::Vector3d pos_enu  = transform_static_frame(pos_frd, StaticTF::AIRCRAFT_TO_BASELINK);
@@ -596,7 +595,8 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     odom_msg.pose.pose.position.y = pos_enu[1];
     odom_msg.pose.pose.position.z = pos_enu[2];
 
-    // Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_FRD)
+    // TODO: usar offset para llevar LOCAL_FRAME_FRD a LOCAL_FRAME_NED y despues...
+    //  Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_FRD)
     odom_msg.pose.pose.orientation.w = msg->q[0];
     odom_msg.pose.pose.orientation.x = msg->q[1];
     odom_msg.pose.pose.orientation.y = msg->q[2];

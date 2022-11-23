@@ -613,10 +613,15 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     // Eigen::Vector3d vel_flu = as2::frame::convertENUtoFLU(q_enu, vel_enu);
   } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
     odom_msg.child_frame_id = as2::tf::generateTfName(this->get_namespace(), "base_link");
-    // FRD --> FLU
-    odom_msg.twist.twist.linear.x = msg->vx;
-    odom_msg.twist.twist.linear.y = -msg->vy;
-    odom_msg.twist.twist.linear.z = -msg->vz;
+
+    // Convert from NED to FLU
+    Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
+    Eigen::Vector3d vel_enu = Eigen::Vector3d(vel_ned.y(), vel_ned.x(), -vel_ned.z());
+    Eigen::Vector3d vel_flu = as2::frame::convertENUtoFLU(odom_msg.pose.pose.orientation, vel_enu);
+
+    odom_msg.twist.twist.linear.x = vel_flu[0];
+    odom_msg.twist.twist.linear.y = vel_flu[1];
+    odom_msg.twist.twist.linear.z = vel_flu[2];
   } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::BODY_FRAME_FRD) {
     odom_msg.child_frame_id = as2::tf::generateTfName(this->get_namespace(), "base_link");
     // FRD --> FLU

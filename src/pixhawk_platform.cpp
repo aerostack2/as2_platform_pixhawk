@@ -559,77 +559,71 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   using namespace px4_ros_com::frame_transforms;
 
   nav_msgs::msg::Odometry odom_msg;
-  odom_msg.header.stamp = this->get_clock()->now();
+  odom_msg.header.stamp    = this->get_clock()->now();
+  odom_msg.header.frame_id = as2::tf::generateTfName(this->get_namespace(), "odom");
+  odom_msg.child_frame_id  = as2::tf::generateTfName(this->get_namespace(), "base_link");
 
-  // Position in meters. Frame of reference defined by local_frame
-  if (msg->local_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) {
-    Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
-    Eigen::Vector3d pos_enu       = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
-    odom_msg.header.frame_id      = as2::tf::generateTfName(this->get_namespace(), "odom");
-    odom_msg.pose.pose.position.x = pos_enu[0];
-    odom_msg.pose.pose.position.y = pos_enu[1];
-    odom_msg.pose.pose.position.z = pos_enu[2];
+  switch (msg->local_frame) {
+    case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED:
+    case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD: {
+      // as2 understand initial Forward as North, so LOCAL_FRD equals LOCAL_NED
 
-    // Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_NED)
-    // q_offset Quaternion rotation from odometry reference frame to navigation frame
-    tf2::Quaternion q_ned2enu;
-    const tf2::Matrix3x3 NED2ENU(0, 1, 0, 1, 0, 0, 0, 0, -1);
-    NED2ENU.getRotation(q_ned2enu);
+      // Position in meters. Frame of reference defined by local_frame
+      Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
+      Eigen::Vector3d pos_enu       = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
+      odom_msg.pose.pose.position.x = pos_enu[0];
+      odom_msg.pose.pose.position.y = pos_enu[1];
+      odom_msg.pose.pose.position.z = pos_enu[2];
 
-    const tf2::Matrix3x3 FRD2FLU(1, 0, 0, 0, -1, 0, 0, 0, -1);
-    tf2::Quaternion q_frd2flu;
-    FRD2FLU.getRotation(q_frd2flu);
+      // Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_NED)
+      // q_offset Quaternion rotation from odometry reference frame to navigation frame
+      tf2::Quaternion q_ned2enu;
+      const tf2::Matrix3x3 NED2ENU(0, 1, 0, 1, 0, 0, 0, 0, -1);
+      NED2ENU.getRotation(q_ned2enu);
 
-    tf2::Quaternion q_ned(msg->q[1], msg->q[2], msg->q[3], msg->q[0]);
-    tf2::Quaternion q_frd            = q_ned2enu * q_ned;
-    tf2::Quaternion q_flu            = q_frd * q_frd2flu;
-    odom_msg.pose.pose.orientation.w = q_flu.w();
-    odom_msg.pose.pose.orientation.x = q_flu.x();
-    odom_msg.pose.pose.orientation.y = q_flu.y();
-    odom_msg.pose.pose.orientation.z = q_flu.z();
-  } else if (msg->local_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
-    Eigen::Vector3d pos_frd(msg->x, msg->y, msg->z);
-    Eigen::Vector3d pos_enu  = transform_static_frame(pos_frd, StaticTF::AIRCRAFT_TO_BASELINK);
-    odom_msg.header.frame_id = as2::tf::generateTfName(this->get_namespace(), "odom");  // TODO map?
-    odom_msg.pose.pose.position.x = pos_enu[0];
-    odom_msg.pose.pose.position.y = pos_enu[1];
-    odom_msg.pose.pose.position.z = pos_enu[2];
+      const tf2::Matrix3x3 FRD2FLU(1, 0, 0, 0, -1, 0, 0, 0, -1);
+      tf2::Quaternion q_frd2flu;
+      FRD2FLU.getRotation(q_frd2flu);
 
-    // TODO: usar offset para llevar LOCAL_FRAME_FRD a LOCAL_FRAME_NED y despues...
-    //  Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_FRD)
-    odom_msg.pose.pose.orientation.w = msg->q[0];
-    odom_msg.pose.pose.orientation.x = msg->q[1];
-    odom_msg.pose.pose.orientation.y = msg->q[2];
-    odom_msg.pose.pose.orientation.z = msg->q[3];
-  } else {
-    RCLCPP_ERROR(this->get_logger(), "Vehicle Odometry local frame not supported.");
+      tf2::Quaternion q_ned(msg->q[1], msg->q[2], msg->q[3], msg->q[0]);
+      tf2::Quaternion q_frd            = q_ned2enu * q_ned;
+      tf2::Quaternion q_flu            = q_frd * q_frd2flu;
+      odom_msg.pose.pose.orientation.w = q_flu.w();
+      odom_msg.pose.pose.orientation.x = q_flu.x();
+      odom_msg.pose.pose.orientation.y = q_flu.y();
+      odom_msg.pose.pose.orientation.z = q_flu.z();
+      break;
+    }
+    default:
+      RCLCPP_ERROR(this->get_logger(), "Vehicle Odometry local frame not supported.");
+      break;
   }
 
   // Velocity in meters/sec. Frame of reference defined by velocity_frame variable
-  if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED) {
-    // TODO Convert from NED to FLU
-    // Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
-    // Eigen::Vector3d vel_enu = Eigen::Vector3d(vel_ned.y(), vel_ned.x(), -vel_ned.z());
-    // Eigen::Vector3d vel_flu = as2::frame::convertENUtoFLU(q_enu, vel_enu);
-  } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD) {
-    odom_msg.child_frame_id = as2::tf::generateTfName(this->get_namespace(), "base_link");
+  switch (msg->velocity_frame) {
+    case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED:
+    case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD: {
+      // Convert from NED to FLU
+      Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
+      Eigen::Vector3d vel_enu = transform_static_frame(vel_ned, StaticTF::NED_TO_ENU);
+      Eigen::Vector3d vel_flu =
+          as2::frame::convertENUtoFLU(odom_msg.pose.pose.orientation, vel_enu);
 
-    // Convert from NED to FLU
-    Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
-    Eigen::Vector3d vel_enu = Eigen::Vector3d(vel_ned.y(), vel_ned.x(), -vel_ned.z());
-    Eigen::Vector3d vel_flu = as2::frame::convertENUtoFLU(odom_msg.pose.pose.orientation, vel_enu);
-
-    odom_msg.twist.twist.linear.x = vel_flu[0];
-    odom_msg.twist.twist.linear.y = vel_flu[1];
-    odom_msg.twist.twist.linear.z = vel_flu[2];
-  } else if (msg->velocity_frame == px4_msgs::msg::VehicleOdometry::BODY_FRAME_FRD) {
-    odom_msg.child_frame_id = as2::tf::generateTfName(this->get_namespace(), "base_link");
-    // FRD --> FLU
-    odom_msg.twist.twist.linear.x = msg->vx;
-    odom_msg.twist.twist.linear.y = -msg->vy;
-    odom_msg.twist.twist.linear.z = -msg->vz;
-  } else {
-    RCLCPP_ERROR(this->get_logger(), "Vehicle Odometry velocity frame not supported.");
+      odom_msg.twist.twist.linear.x = vel_flu[0];
+      odom_msg.twist.twist.linear.y = vel_flu[1];
+      odom_msg.twist.twist.linear.z = vel_flu[2];
+      break;
+    }
+    case px4_msgs::msg::VehicleOdometry::BODY_FRAME_FRD: {
+      // FRD --> FLU
+      odom_msg.twist.twist.linear.x = msg->vx;
+      odom_msg.twist.twist.linear.y = -msg->vy;
+      odom_msg.twist.twist.linear.z = -msg->vz;
+      break;
+    }
+    default:
+      RCLCPP_ERROR(this->get_logger(), "Vehicle Odometry velocity frame not supported.");
+      break;
   }
 
   // Angular rate in body-fixed frame (rad/s): FRD --> FLU

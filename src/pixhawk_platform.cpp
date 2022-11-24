@@ -570,24 +570,18 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
       // Position in meters. Frame of reference defined by local_frame
       Eigen::Vector3d pos_ned(msg->x, msg->y, msg->z);
-      Eigen::Vector3d pos_enu       = transform_static_frame(pos_ned, StaticTF::NED_TO_ENU);
+      Eigen::Vector3d pos_enu       = ned_to_enu_local_frame(pos_ned);
       odom_msg.pose.pose.position.x = pos_enu[0];
       odom_msg.pose.pose.position.y = pos_enu[1];
       odom_msg.pose.pose.position.z = pos_enu[2];
 
       // Quaternion rotation from FRD body frame to refernce frame (LOCAL_FRAME_NED)
       // q_offset Quaternion rotation from odometry reference frame to navigation frame
-      tf2::Quaternion q_ned2enu;
-      const tf2::Matrix3x3 NED2ENU(0, 1, 0, 1, 0, 0, 0, 0, -1);
-      NED2ENU.getRotation(q_ned2enu);
+      Eigen::Quaterniond q_local_ned(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
+      Eigen::Quaterniond q_local_enu = ned_to_enu_orientation(q_local_ned);
+      // AIRCRAFT (FRD): BODY FRD --> BODY FLU
+      Eigen::Quaterniond q_flu = aircraft_to_baselink_orientation(q_local_enu);
 
-      const tf2::Matrix3x3 FRD2FLU(1, 0, 0, 0, -1, 0, 0, 0, -1);
-      tf2::Quaternion q_frd2flu;
-      FRD2FLU.getRotation(q_frd2flu);
-
-      tf2::Quaternion q_ned(msg->q[1], msg->q[2], msg->q[3], msg->q[0]);
-      tf2::Quaternion q_frd            = q_ned2enu * q_ned;
-      tf2::Quaternion q_flu            = q_frd * q_frd2flu;
       odom_msg.pose.pose.orientation.w = q_flu.w();
       odom_msg.pose.pose.orientation.x = q_flu.x();
       odom_msg.pose.pose.orientation.y = q_flu.y();
@@ -605,9 +599,11 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD: {
       // Convert from NED to FLU
       Eigen::Vector3d vel_ned = Eigen::Vector3d(msg->vx, msg->vy, msg->vz);
-      Eigen::Vector3d vel_enu = transform_static_frame(vel_ned, StaticTF::NED_TO_ENU);
-      Eigen::Vector3d vel_flu =
-          as2::frame::convertENUtoFLU(odom_msg.pose.pose.orientation, vel_enu);
+      Eigen::Vector3d vel_enu = ned_to_enu_local_frame(vel_ned);
+      Eigen::Quaterniond q_baselink(
+          odom_msg.pose.pose.orientation.w, odom_msg.pose.pose.orientation.x,
+          odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z);
+      Eigen::Vector3d vel_flu = transform_frame(vel_enu, q_baselink.inverse());
 
       odom_msg.twist.twist.linear.x = vel_flu[0];
       odom_msg.twist.twist.linear.y = vel_flu[1];

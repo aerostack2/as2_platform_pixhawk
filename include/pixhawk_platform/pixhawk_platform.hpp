@@ -59,7 +59,6 @@
 #include "as2_core/aerial_platform.hpp"
 #include "as2_core/names/topics.hpp"
 #include "as2_core/sensor.hpp"
-#include "as2_core/utils/frame_utils.hpp"
 #include "as2_core/utils/tf_utils.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/thrust.hpp"
@@ -89,9 +88,9 @@ public:
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   void sendCommand() override;
   bool ownSendCommand();
-  void ownKillSwitch() override {};
-  void ownStopPlatform() override {};
-    
+  void ownKillSwitch() override{};
+  void ownStopPlatform() override{};
+
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
   void resetRatesSetpoint();

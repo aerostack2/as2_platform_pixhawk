@@ -42,6 +42,7 @@
 #include <cmath>
 #include <memory>
 #include <px4_msgs/msg/battery_status.hpp>
+#include <px4_msgs/msg/manual_control_switches.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/sensor_combined.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
@@ -88,8 +89,8 @@ public:
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   void sendCommand() override;
   bool ownSendCommand();
-  void ownKillSwitch() override{};
-  void ownStopPlatform() override{};
+  void ownKillSwitch() override;
+  void ownStopPlatform() override;
 
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
@@ -118,6 +119,8 @@ private:
   rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr px4_gps_sub_;
 
   // PX4 publishers
+  rclcpp::Publisher<px4_msgs::msg::ManualControlSwitches>::SharedPtr
+      px4_manual_control_switches_pub_;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;

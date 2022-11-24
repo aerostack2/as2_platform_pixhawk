@@ -109,6 +109,9 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "fmu/vehicle_command/in", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
       "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
+
+  px4_manual_control_switches_pub_ = this->create_publisher<px4_msgs::msg::ManualControlSwitches>(
+      "fmu/manual_control_switches/in", rclcpp::SensorDataQoS());
 }
 
 void PixhawkPlatform::configureSensors() {
@@ -354,6 +357,15 @@ bool PixhawkPlatform::ownSendCommand() {
   }
   return true;
 }
+
+void PixhawkPlatform::ownKillSwitch() {
+  RCLCPP_ERROR(this->get_logger(), "KILL SWITCH TRIGGERED");
+  px4_msgs::msg::ManualControlSwitches kill_switch_msg;
+  kill_switch_msg.kill_switch = true;
+  px4_manual_control_switches_pub_->publish(kill_switch_msg);
+}
+
+void PixhawkPlatform::ownStopPlatform() { RCLCPP_WARN(this->get_logger(), "NOT IMPLEMENTED"); }
 
 void PixhawkPlatform::resetTrajectorySetpoint() {
   px4_trajectory_setpoint_.x = NAN;

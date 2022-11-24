@@ -42,6 +42,7 @@
 #include <cmath>
 #include <memory>
 #include <px4_msgs/msg/battery_status.hpp>
+#include <px4_msgs/msg/manual_control_switches.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/sensor_combined.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
@@ -88,6 +89,8 @@ public:
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   void sendCommand() override;
   bool ownSendCommand();
+  void ownKillSwitch() override;
+  void ownStopPlatform() override;
 
   void resetTrajectorySetpoint();
   void resetAttitudeSetpoint();
@@ -103,7 +106,9 @@ private:
   std::unique_ptr<as2::sensors::Sensor<nav_msgs::msg::Odometry>> odometry_raw_estimation_ptr_;
   std::unique_ptr<as2::sensors::GPS> gps_sensor_ptr_;
 
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_sub_;
+  std::shared_ptr<as2::tf::TfHandler> tf_handler_;
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr external_odometry_sub_;
+  void externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
 
   // PX4 subscribers
   rclcpp::Subscription<px4_msgs::msg::SensorCombined>::SharedPtr px4_imu_sub_;
@@ -114,6 +119,8 @@ private:
   rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr px4_gps_sub_;
 
   // PX4 publishers
+  rclcpp::Publisher<px4_msgs::msg::ManualControlSwitches>::SharedPtr
+      px4_manual_control_switches_pub_;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
@@ -149,6 +156,7 @@ private:
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;
+  bool external_odom_   = true;
 
 private:
   // PX4 Callbacks

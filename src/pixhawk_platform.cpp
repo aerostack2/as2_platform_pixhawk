@@ -404,22 +404,19 @@ void PixhawkPlatform::resetRatesSetpoint() {
 }
 
 void PixhawkPlatform::externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr _twist_msg) {
-  geometry_msgs::msg::PoseStamped pose_msg;
-  geometry_msgs::msg::TwistStamped twist_msg;
-
   try {
     auto [pose_msg, twist_msg] = tf_handler_->getState(*_twist_msg, base_link_frame_id_,
                                                        odom_frame_id_, base_link_frame_id_);
+
+    odometry_msg_.header.stamp    = twist_msg.header.stamp;
+    odometry_msg_.header.frame_id = pose_msg.header.frame_id;   // LOCAL_FRAME_FLU
+    odometry_msg_.child_frame_id  = twist_msg.header.frame_id;  // BODY_FRAME_FLU
+    odometry_msg_.pose.pose       = pose_msg.pose;
+    odometry_msg_.twist.twist     = twist_msg.twist;
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(this->get_logger(), "Could not get transform: %s", ex.what());
-    return;
   }
-
-  odometry_msg_.header.stamp    = twist_msg.header.stamp;
-  odometry_msg_.header.frame_id = pose_msg.header.frame_id;   // LOCAL_FRAME_FLU
-  odometry_msg_.child_frame_id  = twist_msg.header.frame_id;  // BODY_FRAME_FLU
-  odometry_msg_.pose.pose       = pose_msg.pose;
-  odometry_msg_.twist.twist     = twist_msg.twist;
+  return;
 }
 
 /** -----------------------------------------------------------------*/

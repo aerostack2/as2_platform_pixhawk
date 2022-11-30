@@ -157,6 +157,8 @@ private:
   float min_thrust_;
   bool simulation_mode_ = false;
   bool external_odom_   = true;
+  std::string base_link_frame_id_;
+  std::string odom_frame_id_;
 
 private:
   // PX4 Callbacks

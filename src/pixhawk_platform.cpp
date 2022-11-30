@@ -39,6 +39,9 @@
 PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   configureSensors();
 
+  base_link_frame_id_ = as2::tf::generateTfName(this, "base_link");
+  odom_frame_id_      = as2::tf::generateTfName(this, "odom");
+
   this->declare_parameter<float>("mass");
   mass_ = this->get_parameter("mass").as_double();
 
@@ -400,27 +403,20 @@ void PixhawkPlatform::resetRatesSetpoint() {
   px4_attitude_setpoint_.thrust_body = std::array<float, 3>{0, 0, -min_thrust_};
 }
 
-void PixhawkPlatform::externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
-  geometry_msgs::msg::PoseStamped pose_msg;
-  geometry_msgs::msg::TwistStamped twist_msg = *msg;
-
-  if (!tf_handler_->tryConvert(twist_msg, as2::tf::generateTfName(this, "base_link")))
-    return;  // BODY_FRAME_FLU
-
+void PixhawkPlatform::externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr _twist_msg) {
   try {
-    pose_msg = tf_handler_->getPoseStamped(
-        as2::tf::generateTfName(this, "odom"), as2::tf::generateTfName(this, "base_link"),
-        tf2_ros::fromMsg(twist_msg.header.stamp));  // LOCAL_FRAME_FLU
-  } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(this->get_logger(), "Could not get state pose transform: %s", ex.what());
-    return;
-  }
+    auto [pose_msg, twist_msg] = tf_handler_->getState(*_twist_msg, base_link_frame_id_,
+                                                       odom_frame_id_, base_link_frame_id_);
 
-  odometry_msg_.header.stamp    = twist_msg.header.stamp;
-  odometry_msg_.header.frame_id = pose_msg.header.frame_id;   // LOCAL_FRAME_FLU
-  odometry_msg_.child_frame_id  = twist_msg.header.frame_id;  // BODY_FRAME_FLU
-  odometry_msg_.pose.pose       = pose_msg.pose;
-  odometry_msg_.twist.twist     = twist_msg.twist;
+    odometry_msg_.header.stamp    = twist_msg.header.stamp;
+    odometry_msg_.header.frame_id = pose_msg.header.frame_id;   // LOCAL_FRAME_FLU
+    odometry_msg_.child_frame_id  = twist_msg.header.frame_id;  // BODY_FRAME_FLU
+    odometry_msg_.pose.pose       = pose_msg.pose;
+    odometry_msg_.twist.twist     = twist_msg.twist;
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(this->get_logger(), "Could not get transform: %s", ex.what());
+  }
+  return;
 }
 
 /** -----------------------------------------------------------------*/
@@ -554,7 +550,7 @@ void PixhawkPlatform::px4imuCallback(const px4_msgs::msg::SensorCombined::Shared
   auto timestamp = this->get_clock()->now();
   sensor_msgs::msg::Imu imu_msg;
   imu_msg.header.stamp          = timestamp;
-  imu_msg.header.frame_id       = as2::tf::generateTfName(this->get_namespace(), "base_link");
+  imu_msg.header.frame_id       = base_link_frame_id_;
   imu_msg.linear_acceleration.x = msg->accelerometer_m_s2[0];
   imu_msg.linear_acceleration.y = msg->accelerometer_m_s2[1];
   imu_msg.linear_acceleration.z = msg->accelerometer_m_s2[2];
@@ -572,8 +568,8 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
   nav_msgs::msg::Odometry odom_msg;
   odom_msg.header.stamp    = this->get_clock()->now();
-  odom_msg.header.frame_id = as2::tf::generateTfName(this->get_namespace(), "odom");
-  odom_msg.child_frame_id  = as2::tf::generateTfName(this->get_namespace(), "base_link");
+  odom_msg.header.frame_id = odom_frame_id_;
+  odom_msg.child_frame_id  = base_link_frame_id_;
 
   switch (msg->local_frame) {
     case px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_NED:

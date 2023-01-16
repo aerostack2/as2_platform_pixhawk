@@ -1,1 +1,1 @@
-# as2_platform_pixhawk
+# pixhawk_platform

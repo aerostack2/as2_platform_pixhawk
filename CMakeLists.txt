@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-set(PROJECT_NAME pixhawk_platform)
+set(PROJECT_NAME as2_platform_pixhawk)
 project(${PROJECT_NAME})
 
 # Default to C++17
@@ -20,7 +20,6 @@ set(PROJECT_DEPENDENCIES
   tf2_geometry_msgs
   nav_msgs
   px4_msgs
-  px4_ros_com
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})

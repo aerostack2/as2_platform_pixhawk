@@ -2,7 +2,6 @@
 
 
 
-Multiple PX4 Operation modes:
-****************************
+## Multiple PX4 Operation modes:
 
 ![image info](./docs/pixhawk_odometry.png)

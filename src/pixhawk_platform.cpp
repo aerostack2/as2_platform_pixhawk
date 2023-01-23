@@ -764,7 +764,7 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
   battery_msg.charge          = NAN;
   battery_msg.capacity        = msg->capacity;
   battery_msg.design_capacity = msg->design_capacity;
-  battery_msg.percentage      = 1.0 - msg->remaining;
+  battery_msg.percentage      = 100.0 * msg->remaining;
   // TODO: config file with battery settings
   battery_msg.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
   battery_msg.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN;

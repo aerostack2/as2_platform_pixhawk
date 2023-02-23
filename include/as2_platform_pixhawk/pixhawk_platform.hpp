@@ -40,20 +40,20 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <string>
+
 #include <px4_msgs/msg/battery_status.hpp>
 #include <px4_msgs/msg/manual_control_switches.hpp>
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/sensor_combined.hpp>
 #include <px4_msgs/msg/sensor_gps.hpp>
-#include <px4_msgs/msg/timesync.hpp>
+#include <px4_msgs/msg/timesync_status.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_attitude_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
-#include <px4_msgs/msg/vehicle_visual_odometry.hpp>
-#include <string>
 
 #include <as2_core/utils/frame_utils.hpp>
 #include "as2_core/aerial_platform.hpp"
@@ -113,7 +113,7 @@ private:
   rclcpp::Subscription<px4_msgs::msg::SensorCombined>::SharedPtr px4_imu_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_odometry_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleControlMode>::SharedPtr px4_vehicle_control_mode_sub_;
-  rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr px4_timesync_sub_;
+  rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr px4_timesync_sub_;
   rclcpp::Subscription<px4_msgs::msg::BatteryStatus>::SharedPtr px4_battery_sub_;
   rclcpp::Subscription<px4_msgs::msg::SensorGps>::SharedPtr px4_gps_sub_;
 
@@ -126,7 +126,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
       px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
-  rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr px4_visual_odometry_pub_;
+  // rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr px4_visual_odometry_pub_;
 
   // PX4 Functions
   void PX4arm() const;
@@ -149,7 +149,7 @@ private:
   px4_msgs::msg::TrajectorySetpoint px4_trajectory_setpoint_;
   px4_msgs::msg::VehicleAttitudeSetpoint px4_attitude_setpoint_;
   px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
-  px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
+  // px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
 
   float mass_;
   float max_thrust_;

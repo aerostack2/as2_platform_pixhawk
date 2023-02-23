@@ -101,8 +101,8 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
         as2_names::topics::self_localization::qos,
         std::bind(&PixhawkPlatform::externalOdomCb, this, std::placeholders::_1));
 
-    // static auto px4_publish_vo_timer = this->create_wall_timer(
-    //     std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
+    static auto px4_publish_vo_timer = this->create_wall_timer(
+        std::chrono::milliseconds(10), [this]() { this->PX4publishVisualOdometry(); });
   }
 
   // declare PX4 publishers
@@ -521,47 +521,47 @@ void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, f
 }
 
 /// @brief See documentation: https://docs.px4.io/v1.13/en/msg_docs/vehicle_odometry.html
-// void PixhawkPlatform::PX4publishVisualOdometry() {
-//   // Position in meters. Frame of reference defined by local_frame
-//   px4_visual_odometry_msg_.local_frame = px4_msgs::msg::VehicleOdometry::LOCAL_FRAME_FRD;
-//   // FLU --> FRD
-//   px4_visual_odometry_msg_.x = odometry_msg_.pose.pose.position.x;
-//   px4_visual_odometry_msg_.y = -odometry_msg_.pose.pose.position.y;
-//   px4_visual_odometry_msg_.z = -odometry_msg_.pose.pose.position.x;
+void PixhawkPlatform::PX4publishVisualOdometry() {
+  // Position in meters. Frame of reference defined by local_frame
+  px4_visual_odometry_msg_.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_FRD;
+  // FLU --> FRD
+  px4_visual_odometry_msg_.position[0] = odometry_msg_.pose.pose.position.x;
+  px4_visual_odometry_msg_.position[1] = -odometry_msg_.pose.pose.position.y;
+  px4_visual_odometry_msg_.position[2] = -odometry_msg_.pose.pose.position.x;
 
-//   // Quaternion rotation from FRD body frame to refernce frame
-//   Eigen::Quaterniond q_baselink(
-//       odometry_msg_.pose.pose.orientation.w, odometry_msg_.pose.pose.orientation.x,
-//       odometry_msg_.pose.pose.orientation.y, odometry_msg_.pose.pose.orientation.z);
-//   // BASELINK --> AIRCRAFT (FLU --> FRD)
+  // Quaternion rotation from FRD body frame to refernce frame
+  Eigen::Quaterniond q_baselink(
+      odometry_msg_.pose.pose.orientation.w, odometry_msg_.pose.pose.orientation.x,
+      odometry_msg_.pose.pose.orientation.y, odometry_msg_.pose.pose.orientation.z);
+  // BASELINK --> AIRCRAFT (FLU --> FRD)
 
-//   // TODO: px4_ros_com done
-//   Eigen::Quaterniond q_aircraft = q_baselink * q_baselink_to_aircraft_;
-//   // Eigen::Quaterniond q_aircraft =
-//   // px4_ros_com::frame_transforms::transform_orientation(q_baselink,
-//   // px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
+  // TODO: px4_ros_com done
+  Eigen::Quaterniond q_aircraft = q_baselink * q_baselink_to_aircraft_;
+  // Eigen::Quaterniond q_aircraft =
+  // px4_ros_com::frame_transforms::transform_orientation(q_baselink,
+  // px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
 
-//   px4_visual_odometry_msg_.q[0] = q_aircraft.w();
-//   px4_visual_odometry_msg_.q[1] = q_aircraft.x();
-//   px4_visual_odometry_msg_.q[2] = q_aircraft.y();
-//   px4_visual_odometry_msg_.q[3] = q_aircraft.z();
+  px4_visual_odometry_msg_.q[0] = q_aircraft.w();
+  px4_visual_odometry_msg_.q[1] = q_aircraft.x();
+  px4_visual_odometry_msg_.q[2] = q_aircraft.y();
+  px4_visual_odometry_msg_.q[3] = q_aircraft.z();
 
-//   // Velocity in meters/sec. Frame of reference defined by velocity_frame variable.
-//   px4_visual_odometry_msg_.velocity_frame = px4_msgs::msg::VehicleOdometry::BODY_FRAME_FRD;
-//   // FLU --> FRD
-//   px4_visual_odometry_msg_.vx = odometry_msg_.twist.twist.linear.x;
-//   px4_visual_odometry_msg_.vy = -odometry_msg_.twist.twist.linear.y;
-//   px4_visual_odometry_msg_.vz = -odometry_msg_.twist.twist.linear.z;
+  // Velocity in meters/sec. Frame of reference defined by velocity_frame variable.
+  px4_visual_odometry_msg_.velocity_frame = px4_msgs::msg::VehicleOdometry::VELOCITY_FRAME_BODY_FRD;
+  // FLU --> FRD
+  px4_visual_odometry_msg_.velocity[0] = odometry_msg_.twist.twist.linear.x;
+  px4_visual_odometry_msg_.velocity[1] = -odometry_msg_.twist.twist.linear.y;
+  px4_visual_odometry_msg_.velocity[2] = -odometry_msg_.twist.twist.linear.z;
 
-//   // Angular rate in body-fixed frame (rad/s).
-//   // FLU --> FRD
-//   px4_visual_odometry_msg_.rollspeed  = odometry_msg_.twist.twist.angular.x;
-//   px4_visual_odometry_msg_.pitchspeed = -odometry_msg_.twist.twist.angular.y;
-//   px4_visual_odometry_msg_.yawspeed   = -odometry_msg_.twist.twist.angular.z;
+  // Angular rate in body-fixed frame (rad/s).
+  // FLU --> FRD
+  px4_visual_odometry_msg_.angular_velocity[1] = odometry_msg_.twist.twist.angular.x;
+  px4_visual_odometry_msg_.angular_velocity[2] = -odometry_msg_.twist.twist.angular.y;
+  px4_visual_odometry_msg_.angular_velocity[3] = -odometry_msg_.twist.twist.angular.z;
 
-//   px4_visual_odometry_msg_.timestamp = timestamp_.load();
-//   px4_visual_odometry_pub_->publish(px4_visual_odometry_msg_);
-// }
+  px4_visual_odometry_msg_.timestamp = timestamp_.load();
+  px4_visual_odometry_pub_->publish(px4_visual_odometry_msg_);
+}
 
 /** -----------------------------------------------------------------*/
 /** ---------------------- SUBSCRIBER CALLBACKS ---------------------*/
@@ -596,10 +596,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
       // as2 understand initial Forward as North, so LOCAL_FRD equals LOCAL_NED
 
       // Position in meters. Frame of reference defined by local_frame
-      Eigen::Vector3d pos_ned(
-        msg->position[0], 
-        msg->position[1], 
-        msg->position[2]);
+      Eigen::Vector3d pos_ned(msg->position[0], msg->position[1], msg->position[2]);
 
       // TODO: px4_ros_com done
       const Eigen::PermutationMatrix<3> ned_enu_reflection_xy(Eigen::Vector3i(1, 0, 2));
@@ -641,10 +638,8 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     case px4_msgs::msg::VehicleOdometry::VELOCITY_FRAME_NED:
     case px4_msgs::msg::VehicleOdometry::VELOCITY_FRAME_FRD: {
       // Convert from NED to FLU
-      Eigen::Vector3d vel_ned = Eigen::Vector3d(
-        msg->velocity[0], 
-        msg->velocity[1], 
-        msg->velocity[2]);
+      Eigen::Vector3d vel_ned =
+          Eigen::Vector3d(msg->velocity[0], msg->velocity[1], msg->velocity[2]);
 
       // TODO: px4_ros_com done
       const Eigen::PermutationMatrix<3> ned_enu_reflection_xy(Eigen::Vector3i(1, 0, 2));
@@ -669,7 +664,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
     }
     case px4_msgs::msg::VehicleOdometry::VELOCITY_FRAME_BODY_FRD: {
       // FRD --> FLU
-      odom_msg.twist.twist.linear.x =  msg->velocity[0];
+      odom_msg.twist.twist.linear.x = msg->velocity[0];
       odom_msg.twist.twist.linear.y = -msg->velocity[1];
       odom_msg.twist.twist.linear.z = -msg->velocity[2];
       break;
@@ -680,7 +675,7 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
   }
 
   // Angular rate in body-fixed frame (rad/s): FRD --> FLU
-  odom_msg.twist.twist.angular.x =  msg->angular_velocity[0];
+  odom_msg.twist.twist.angular.x = msg->angular_velocity[0];
   odom_msg.twist.twist.angular.y = -msg->angular_velocity[1];
   odom_msg.twist.twist.angular.z = -msg->angular_velocity[2];
 
@@ -689,8 +684,8 @@ void PixhawkPlatform::px4odometryCallback(const px4_msgs::msg::VehicleOdometry::
 
 void PixhawkPlatform::px4VehicleControlModeCallback(
     const px4_msgs::msg::VehicleControlMode::SharedPtr msg) {
-  static bool last_arm_state      = msg->flag_armed;
-  static bool last_offboard_state = msg->flag_control_offboard_enabled;
+  static bool last_arm_state      = false;
+  static bool last_offboard_state = false;
 
   this->platform_info_msg_.armed    = msg->flag_armed;
   this->platform_info_msg_.offboard = msg->flag_control_offboard_enabled;

@@ -126,7 +126,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
       px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
-  // rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr px4_visual_odometry_pub_;
+  rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_visual_odometry_pub_;
 
   // PX4 Functions
   void PX4arm() const;
@@ -149,7 +149,7 @@ private:
   px4_msgs::msg::TrajectorySetpoint px4_trajectory_setpoint_;
   px4_msgs::msg::VehicleAttitudeSetpoint px4_attitude_setpoint_;
   px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
-  // px4_msgs::msg::VehicleVisualOdometry px4_visual_odometry_msg_;
+  px4_msgs::msg::VehicleOdometry px4_visual_odometry_msg_;
 
   float mass_;
   float max_thrust_;

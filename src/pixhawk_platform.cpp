@@ -71,11 +71,11 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "/fmu/out/sensor_combined", rclcpp::SensorDataQoS(),
       std::bind(&PixhawkPlatform::px4imuCallback, this, std::placeholders::_1));
 
-  px4_timesync_sub_ = this->create_subscription<px4_msgs::msg::TimesyncStatus>(
-      "/fmu/out/timesync_status", rclcpp::SensorDataQoS(),
-      [this](const px4_msgs::msg::TimesyncStatus::UniquePtr msg) {
-        timestamp_.store(msg->timestamp);
-      });
+  // px4_timesync_sub_ = this->create_subscription<px4_msgs::msg::TimesyncStatus>(
+  //     "/fmu/out/timesync_status", rclcpp::SensorDataQoS(),
+  //     [this](const px4_msgs::msg::TimesyncStatus::UniquePtr msg) {
+  //       timestamp_.store(msg->timestamp);
+  //     });
 
   px4_vehicle_control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>(
       "/fmu/out/vehicle_control_mode", rclcpp::SensorDataQoS(),
@@ -117,8 +117,8 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
       "/fmu/in/vehicle_rates_setpoint", rclcpp::SensorDataQoS());
   px4_vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>(
       "/fmu/in/vehicle_command", rclcpp::SensorDataQoS());
-  // px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>(
-  //     "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
+  px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleOdometry>(
+      "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
 
   px4_manual_control_switches_pub_ = this->create_publisher<px4_msgs::msg::ManualControlSwitches>(
       "fmu/in/manual_control_switches", rclcpp::SensorDataQoS());
@@ -161,7 +161,7 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard) {
   RCLCPP_DEBUG(this->get_logger(), "Switching to OFFBOARD mode");
   // Following PX4 offboard guidelines
   rclcpp::Rate r(100);
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 10; i++) {
     PX4publishRatesSetpoint();
     r.sleep();
   }
@@ -225,24 +225,23 @@ float yawEnuToAircraft(geometry_msgs::msg::PoseStamped command_pose_msg) {
 
 void PixhawkPlatform::sendCommand() {
   // Actuator commands are published continously
+
   if (!getArmingState()) {
     return;
   }
 
-  if (this->getFlagSimulationMode()) {
-    if (!getOffboardMode()) return;
-  } else {
-    if ((!getOffboardMode() || !has_mode_settled_) && !manual_from_operator_) {
-      px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
-      px4_offboard_control_mode_.body_rate = true;
+  if ((!getOffboardMode() || !has_mode_settled_) && !manual_from_operator_) {
+    px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
+    px4_offboard_control_mode_.body_rate = true;
 
-      resetRatesSetpoint();
-      px4_rates_setpoint_.thrust_body[2] = -0.1f;
+    resetRatesSetpoint();
+    px4_rates_setpoint_.thrust_body[2] = -1.0 * min_thrust_;
 
-      PX4publishRatesSetpoint();
-      return;
-    }
+    // RCLCPP_INFO(this->get_logger(), "SendCommand - Offboard Mode - Publish Rates Setpoint");
+    PX4publishRatesSetpoint();
+    return;
   }
+
   ownSendCommand();
   return;
 }
@@ -358,12 +357,6 @@ bool PixhawkPlatform::ownSendCommand() {
         px4_rates_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / max_thrust_;
       }
     } break;
-    // case as2_msgs::msg::ControlMode::ACCEL :{
-    //   // Mode to implement
-    //   RCLCPP_ERROR(this->get_logger(), "ACCELERATION CONTROL MODE is not
-    //   supported yet "); return false;
-    //   }
-    //   break;
     default:
       return false;
   }
@@ -443,7 +436,7 @@ void PixhawkPlatform::externalOdomCb(const geometry_msgs::msg::TwistStamped::Sha
 /**
  * @brief Send a command to Arm the vehicle
  */
-void PixhawkPlatform::PX4arm() const {
+void PixhawkPlatform::PX4arm() {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
   RCLCPP_DEBUG(this->get_logger(), "Arm command send");
 }
@@ -451,7 +444,7 @@ void PixhawkPlatform::PX4arm() const {
 /**
  * @brief Send a command to Disarm the vehicle
  */
-void PixhawkPlatform::PX4disarm() const {
+void PixhawkPlatform::PX4disarm() {
   PX4publishVehicleCommand(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0);
   RCLCPP_DEBUG(this->get_logger(), "Disarm command send");
 }
@@ -469,8 +462,10 @@ void PixhawkPlatform::PX4publishOffboardControlMode() {
  * @brief Publish a trajectory setpoint
  */
 void PixhawkPlatform::PX4publishTrajectorySetpoint() {
-  px4_trajectory_setpoint_.timestamp   = timestamp_.load();
-  px4_offboard_control_mode_.timestamp = timestamp_.load();
+  // px4_trajectory_setpoint_.timestamp   = timestamp_.load();
+  // px4_offboard_control_mode_.timestamp = timestamp_.load();
+  px4_trajectory_setpoint_.timestamp   = this->get_clock()->now().nanoseconds() / 1000;
+  px4_offboard_control_mode_.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 
   px4_trajectory_setpoint_pub_->publish(px4_trajectory_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
@@ -480,8 +475,10 @@ void PixhawkPlatform::PX4publishTrajectorySetpoint() {
  * @brief Publish a attitude setpoint
  */
 void PixhawkPlatform::PX4publishAttitudeSetpoint() {
-  px4_attitude_setpoint_.timestamp     = timestamp_.load();
-  px4_offboard_control_mode_.timestamp = timestamp_.load();
+  // px4_attitude_setpoint_.timestamp     = timestamp_.load();
+  // px4_offboard_control_mode_.timestamp = timestamp_.load();
+  px4_attitude_setpoint_.timestamp     = this->get_clock()->now().nanoseconds() / 1000;
+  px4_offboard_control_mode_.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 
   px4_vehicle_attitude_setpoint_pub_->publish(px4_attitude_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
@@ -491,8 +488,10 @@ void PixhawkPlatform::PX4publishAttitudeSetpoint() {
  * @brief Publish a vehicle rates setpoint
  */
 void PixhawkPlatform::PX4publishRatesSetpoint() {
-  px4_rates_setpoint_.timestamp        = timestamp_.load();
-  px4_offboard_control_mode_.timestamp = timestamp_.load();
+  // px4_rates_setpoint_.timestamp        = timestamp_.load();
+  // px4_offboard_control_mode_.timestamp = timestamp_.load();
+  px4_rates_setpoint_.timestamp        = this->get_clock()->now().nanoseconds() / 1000;
+  px4_offboard_control_mode_.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 
   px4_vehicle_rates_setpoint_pub_->publish(px4_rates_setpoint_);
   px4_offboard_control_mode_pub_->publish(px4_offboard_control_mode_);
@@ -505,9 +504,10 @@ void PixhawkPlatform::PX4publishRatesSetpoint() {
  * @param param1    Command parameter 1
  * @param param2    Command parameter 2
  */
-void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, float param2) const {
+void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, float param2) {
   px4_msgs::msg::VehicleCommand msg{};
-  msg.timestamp        = timestamp_.load();
+  // msg.timestamp        = timestamp_.load();
+  msg.timestamp        = this->get_clock()->now().nanoseconds() / 1000;
   msg.param1           = param1;
   msg.param2           = param2;
   msg.command          = command;
@@ -559,7 +559,8 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
   px4_visual_odometry_msg_.angular_velocity[2] = -odometry_msg_.twist.twist.angular.y;
   px4_visual_odometry_msg_.angular_velocity[3] = -odometry_msg_.twist.twist.angular.z;
 
-  px4_visual_odometry_msg_.timestamp = timestamp_.load();
+  // px4_visual_odometry_msg_.timestamp = timestamp_.load();
+  px4_visual_odometry_msg_.timestamp = this->get_clock()->now().nanoseconds() / 1000;
   px4_visual_odometry_pub_->publish(px4_visual_odometry_msg_);
 }
 

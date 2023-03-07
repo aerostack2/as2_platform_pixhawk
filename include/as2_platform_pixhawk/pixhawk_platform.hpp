@@ -129,13 +129,13 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_visual_odometry_pub_;
 
   // PX4 Functions
-  void PX4arm() const;
-  void PX4disarm() const;
+  void PX4arm();
+  void PX4disarm();
   void PX4publishOffboardControlMode();
   void PX4publishTrajectorySetpoint();
   void PX4publishAttitudeSetpoint();
   void PX4publishRatesSetpoint();
-  void PX4publishVehicleCommand(uint16_t command, float param1 = 0.0, float param2 = 0.0) const;
+  void PX4publishVehicleCommand(uint16_t command, float param1 = 0.0, float param2 = 0.0);
   void PX4publishVisualOdometry();
 
 private:

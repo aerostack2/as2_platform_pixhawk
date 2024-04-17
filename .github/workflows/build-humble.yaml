@@ -1,0 +1,33 @@
+name: build-humble 
+
+on:
+  pull_request:
+    types: [review_requested, ready_for_review]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    container:
+      image: osrf/ros:humble-desktop
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y lcov python3-vcstool python3-colcon-lcov-result python3-colcon-coveragepy-result python3-rosdep python3-pip python3-colcon-common-extensions
+      - name: Setup ros
+        uses: ros-tooling/setup-ros@v0.3
+        with:
+          required-ros-distributions: humble
+      - name: build and test
+        uses: ros-tooling/action-ros-ci@v0.2
+        with:
+          package-name: >
+            as2_platform_pixhawk
+          target-ros2-distro: humble

@@ -31,5 +31,5 @@ jobs:
           package-name: >
             as2_platform_pixhawk
           target-ros2-distro: humble
-          vcs-repo-file-url: dependencies.repos
+          vcs-repo-file-url: as2_platform_pixhawk/dependencies.repos
 

@@ -25,7 +25,8 @@ jobs:
         uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: humble
-      - run : |
+      - name: Checkout Aerostack2
+        run : |
           wget https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos -O /tmp/dependencies.repos && \
           echo '  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version: main' >> /tmp/dependencies.repos
       - name: build and test

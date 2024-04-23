@@ -25,17 +25,14 @@ jobs:
         uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: humble
-      - name: Checkout aerostack2 dependencies
-        uses: actions/checkout@v4
-        with:
-          repository: aerostack2/aerostack2
-          ref: main
-          path: /__w/as2_platform_pixhawk/as2_platform_pixhawk/ros_ws/src/aerostack2
       - name: build and test
         uses: ros-tooling/action-ros-ci@v0.2
+        run : |
+          wget https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos -O /tmp/dependencies.repos && \
+          echo '  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version: main' >> /tmp/dependencies.repos
         with:
           package-name: >
             as2_platform_pixhawk
           target-ros2-distro: humble
-          vcs-repo-file-url: https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos
+          vcs-repo-file-url: /tmp/dependencies.repos
 

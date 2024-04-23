@@ -25,6 +25,12 @@ jobs:
         uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: humble
+      - name: Checkout aerostack2 dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: aerostack2/aerostack2
+          ref: main
+          path: /__w/as2_platform_pixhawk/as2_platform_pixhawk/ros_ws/src/aerostack2
       - name: build and test
         uses: ros-tooling/action-ros-ci@v0.2
         with:

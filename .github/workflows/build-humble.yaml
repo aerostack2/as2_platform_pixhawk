@@ -13,7 +13,7 @@ jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
     container:
-      image: aerostack2/nightly-humble:latest
+      image: ros2/humble
     strategy:
       matrix:
         os: [ubuntu-22.04]

@@ -29,7 +29,7 @@ jobs:
           wget https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos -O /tmp/dependencies.repos && \
           echo '  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version: main' >> /tmp/dependencies.repos
       - name: build and test
-        uses: ros-tooling/action-ros-ci@v0.7
+        uses: ros-tooling/action-ros-ci@v0.3
         with:
           package-name: >
             as2_platform_pixhawk

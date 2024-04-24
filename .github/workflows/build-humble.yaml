@@ -34,7 +34,7 @@ jobs:
           export TARGET_BRANCH=${{ github.event.inputs.target_branch }} 
           if [ -z "$TARGET_BRANCH" ]; then export TARGET_BRANCH=main; echo "No target branch provided, using $TARGET_BRANCH";  fi
           wget https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos -O /tmp/dependencies.repos && \
-          echo "repositories:\n  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version:  $TARGET_BRANCH " >> /tmp/dependencies.repos
+          echo "  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version:  $TARGET_BRANCH " >> /tmp/dependencies.repos
       - name: build and test
         uses: ros-tooling/action-ros-ci@v0.3
         with:

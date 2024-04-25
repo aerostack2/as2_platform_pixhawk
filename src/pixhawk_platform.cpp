@@ -118,7 +118,7 @@ PixhawkPlatform::PixhawkPlatform() : as2::AerialPlatform() {
   px4_vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>(
       "/fmu/in/vehicle_command", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleOdometry>(
-      "fmu/vehicle_visual_odometry/in", rclcpp::SensorDataQoS());
+      "/fmu/in/vehicle_visual_odometry", rclcpp::SensorDataQoS());
 
   px4_manual_control_switches_pub_ = this->create_publisher<px4_msgs::msg::ManualControlSwitches>(
       "fmu/in/manual_control_switches", rclcpp::SensorDataQoS());
@@ -169,7 +169,7 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard) {
   return true;
 }
 
-bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode &msg) {
+bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg) {
   px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
 
   /* PIXHAWK CONTROL MODES:
@@ -423,7 +423,7 @@ void PixhawkPlatform::externalOdomCb(const geometry_msgs::msg::TwistStamped::Sha
     odometry_msg_.child_frame_id  = twist_msg.header.frame_id;  // BODY_FRAME_FLU
     odometry_msg_.pose.pose       = pose_msg.pose;
     odometry_msg_.twist.twist     = twist_msg.twist;
-  } catch (tf2::TransformException &ex) {
+  } catch (tf2::TransformException& ex) {
     RCLCPP_WARN(this->get_logger(), "Could not get transform: %s", ex.what());
   }
   return;
@@ -527,7 +527,7 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
   // FLU --> FRD
   px4_visual_odometry_msg_.position[0] = odometry_msg_.pose.pose.position.x;
   px4_visual_odometry_msg_.position[1] = -odometry_msg_.pose.pose.position.y;
-  px4_visual_odometry_msg_.position[2] = -odometry_msg_.pose.pose.position.x;
+  px4_visual_odometry_msg_.position[2] = -odometry_msg_.pose.pose.position.z;
 
   // Quaternion rotation from FRD body frame to refernce frame
   Eigen::Quaterniond q_baselink(
@@ -536,7 +536,8 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
   // BASELINK --> AIRCRAFT (FLU --> FRD)
 
   // TODO: px4_ros_com done
-  Eigen::Quaterniond q_aircraft = q_baselink * q_baselink_to_aircraft_;
+
+  Eigen::Quaterniond q_aircraft = q_baselink * q_baselink_to_aircraft_.inverse();
   // Eigen::Quaterniond q_aircraft =
   // px4_ros_com::frame_transforms::transform_orientation(q_baselink,
   // px4_ros_com::frame_transforms::StaticTF::BASELINK_TO_AIRCRAFT);
@@ -555,9 +556,9 @@ void PixhawkPlatform::PX4publishVisualOdometry() {
 
   // Angular rate in body-fixed frame (rad/s).
   // FLU --> FRD
-  px4_visual_odometry_msg_.angular_velocity[1] = odometry_msg_.twist.twist.angular.x;
-  px4_visual_odometry_msg_.angular_velocity[2] = -odometry_msg_.twist.twist.angular.y;
-  px4_visual_odometry_msg_.angular_velocity[3] = -odometry_msg_.twist.twist.angular.z;
+  px4_visual_odometry_msg_.angular_velocity[0] = odometry_msg_.twist.twist.angular.x;
+  px4_visual_odometry_msg_.angular_velocity[1] = -odometry_msg_.twist.twist.angular.y;
+  px4_visual_odometry_msg_.angular_velocity[2] = -odometry_msg_.twist.twist.angular.z;
 
   // px4_visual_odometry_msg_.timestamp = timestamp_.load();
   px4_visual_odometry_msg_.timestamp = this->get_clock()->now().nanoseconds() / 1000;
@@ -692,9 +693,9 @@ void PixhawkPlatform::px4VehicleControlModeCallback(
   this->platform_info_msg_.offboard = msg->flag_control_offboard_enabled;
 
   if (this->platform_info_msg_.offboard != last_offboard_state) {
-    if (this->platform_info_msg_.offboard)
+    if (this->platform_info_msg_.offboard) {
       RCLCPP_INFO(this->get_logger(), "OFFBOARD_ENABLED");
-    else {
+    } else {
       RCLCPP_INFO(this->get_logger(), "OFFBOARD_DISABLED");
       manual_from_operator_ = true;
     }
@@ -730,9 +731,10 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
     nav_sat_fix_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
   }
   nav_sat_fix_msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
-  nav_sat_fix_msg.latitude       = msg->lat;
-  nav_sat_fix_msg.longitude      = msg->lon;
-  nav_sat_fix_msg.altitude       = msg->alt_ellipsoid;
+
+  nav_sat_fix_msg.latitude  = msg->lat;
+  nav_sat_fix_msg.longitude = msg->lon;
+  nav_sat_fix_msg.altitude  = msg->alt_ellipsoid;
 
   if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
     // Position uncertainty --> Diagonal known

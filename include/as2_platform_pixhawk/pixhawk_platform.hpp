@@ -74,14 +74,14 @@
 class PixhawkPlatform : public as2::AerialPlatform {
 public:
   PixhawkPlatform();
-  ~PixhawkPlatform(){};
+  ~PixhawkPlatform() {}
 
 public:
   void configureSensors();
   void publishSensorData();
 
   // TODO: set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
-  void setDefaultControlMode(){};
+  void setDefaultControlMode() {}
 
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);

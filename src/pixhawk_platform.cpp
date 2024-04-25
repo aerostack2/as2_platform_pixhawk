@@ -731,9 +731,10 @@ void PixhawkPlatform::px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr m
     nav_sat_fix_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
   }
   nav_sat_fix_msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;  // DEFAULT
-  nav_sat_fix_msg.latitude       = msg->latitude_deg;
-  nav_sat_fix_msg.longitude      = msg->longitude_deg;
-  nav_sat_fix_msg.altitude       = msg->altitude_ellipsoid_m;
+
+  nav_sat_fix_msg.latitude  = msg->lat;
+  nav_sat_fix_msg.longitude = msg->lon;
+  nav_sat_fix_msg.altitude  = msg->alt_ellipsoid;
 
   if (!std::isnan(msg->eph) && !std::isnan(msg->epv)) {
     // Position uncertainty --> Diagonal known

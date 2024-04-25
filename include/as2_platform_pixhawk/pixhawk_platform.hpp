@@ -71,8 +71,7 @@
 #include "sensor_msgs/msg/nav_sat_status.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-class PixhawkPlatform : public as2::AerialPlatform
-{
+class PixhawkPlatform : public as2::AerialPlatform {
 public:
   PixhawkPlatform();
   ~PixhawkPlatform() {}
@@ -86,7 +85,7 @@ public:
 
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);
-  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg);
+  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
   void sendCommand() override;
   bool ownSendCommand();
   void ownKillSwitch() override;
@@ -120,12 +119,12 @@ private:
 
   // PX4 publishers
   rclcpp::Publisher<px4_msgs::msg::ManualControlSwitches>::SharedPtr
-    px4_manual_control_switches_pub_;
+      px4_manual_control_switches_pub_;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
-    px4_vehicle_attitude_setpoint_pub_;
+      px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_visual_odometry_pub_;
 
@@ -141,7 +140,7 @@ private:
 
 private:
   bool manual_from_operator_ = false;
-  bool set_disarm_ = false;
+  bool set_disarm_           = false;
   nav_msgs::msg::Odometry odometry_msg_;
 
   std::atomic<uint64_t> timestamp_;
@@ -156,7 +155,7 @@ private:
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;
-  bool external_odom_ = true;
+  bool external_odom_   = true;
   std::string base_link_frame_id_;
   std::string odom_frame_id_;
 

@@ -58,26 +58,30 @@
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <px4_msgs/msg/vehicle_rates_setpoint.hpp>
 
-#include <as2_core/utils/frame_utils.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/battery_state.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/nav_sat_status.hpp>
+#include "as2_core/custom/tf2_geometry_msgs.hpp"
+
+#include "as2_core/utils/frame_utils.hpp"
 #include "as2_core/aerial_platform.hpp"
 #include "as2_core/names/topics.hpp"
 #include "as2_core/sensor.hpp"
 #include "as2_core/utils/tf_utils.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/thrust.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "sensor_msgs/msg/battery_state.hpp"
-#include "sensor_msgs/msg/imu.hpp"
-#include "sensor_msgs/msg/nav_sat_fix.hpp"
-#include "sensor_msgs/msg/nav_sat_status.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+
+namespace as2_platform_pixhawk
+{
 
 class PixhawkPlatform : public as2::AerialPlatform
 {
 public:
-  PixhawkPlatform();
+  explicit PixhawkPlatform(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
   ~PixhawkPlatform() {}
 
 public:
@@ -155,7 +159,6 @@ private:
   px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
   px4_msgs::msg::VehicleOdometry px4_visual_odometry_msg_;
 
-  float mass_;
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;
@@ -176,5 +179,7 @@ private:
   void px4BatteryCallback(const px4_msgs::msg::BatteryStatus::SharedPtr msg);
   void px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg);
 };
+
+}  // namespace as2_platform_pixhawk
 
 #endif  // AS2_PLATFORM_PIXHAWK__PIXHAWK_PLATFORM_HPP_

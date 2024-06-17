@@ -43,7 +43,7 @@
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<PixhawkPlatform>();
+  auto node = std::make_shared<as2_platform_pixhawk::PixhawkPlatform>();
   node->preset_loop_frequency(300);
   as2::spinLoop(node);
 

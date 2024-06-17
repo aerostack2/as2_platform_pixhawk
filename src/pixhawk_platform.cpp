@@ -39,8 +39,11 @@
 
 #include "pixhawk_platform.hpp"
 
-PixhawkPlatform::PixhawkPlatform()
-: as2::AerialPlatform()
+namespace as2_platform_pixhawk
+{
+
+PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
+: as2::AerialPlatform(options)
 {
   configureSensors();
 
@@ -835,3 +838,5 @@ bool PixhawkPlatform::getFlagSimulationMode()
   // TODO(miferco97): check if this is better than creating a variable to store the value
   return this->get_parameter("use_sim_time").as_bool();
 }
+
+}  // namespace as2_platform_pixhawk

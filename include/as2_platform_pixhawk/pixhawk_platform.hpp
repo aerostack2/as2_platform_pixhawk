@@ -1,41 +1,44 @@
-/*!*******************************************************************************************
- *  \file       pixhawk_platform.hpp
- *  \brief      Implementation of PX4 Autopilot UAV platform
- *  \authors    Miguel Fernández Cortizas
- *              David Pérez Saura
- *              Rafael Pérez Seguí
- *              Pedro Arias Pérez
- *
- *  \copyright  Copyright (c) 2022 Universidad Politécnica de Madrid
- *              All Rights Reserved
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 3. Neither the name of the copyright holder nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ********************************************************************************/
+// Copyright 2023 Universidad Politécnica de Madrid
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the Universidad Politécnica de Madrid nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef PIXHAWK_PLATFORM_HPP_
-#define PIXHAWK_PLATFORM_HPP_
+/**
+ * @file pixhawk_platform.hpp
+ *
+ * PixhawkPlatform class definition
+ *
+ * @author Miguel Fernández Cortizas
+ *         Rafael Pérez Seguí
+ *         Pedro Arias Pérez
+ *         Javier Melero Deza
+ */
+
+#ifndef AS2_PLATFORM_PIXHAWK__PIXHAWK_PLATFORM_HPP_
+#define AS2_PLATFORM_PIXHAWK__PIXHAWK_PLATFORM_HPP_
 
 #include <chrono>
 #include <cmath>
@@ -71,7 +74,8 @@
 #include "sensor_msgs/msg/nav_sat_status.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-class PixhawkPlatform : public as2::AerialPlatform {
+class PixhawkPlatform : public as2::AerialPlatform
+{
 public:
   PixhawkPlatform();
   ~PixhawkPlatform() {}
@@ -80,12 +84,12 @@ public:
   void configureSensors();
   void publishSensorData();
 
-  // TODO: set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
+  // TODO(miferco97): set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
   void setDefaultControlMode() {}
 
   bool ownSetArmingState(bool state);
   bool ownSetOffboardControl(bool offboard);
-  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode& msg);
+  bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg);
   void sendCommand() override;
   bool ownSendCommand();
   void ownKillSwitch() override;
@@ -119,12 +123,12 @@ private:
 
   // PX4 publishers
   rclcpp::Publisher<px4_msgs::msg::ManualControlSwitches>::SharedPtr
-      px4_manual_control_switches_pub_;
+    px4_manual_control_switches_pub_;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr px4_offboard_control_mode_pub_;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr px4_trajectory_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr px4_vehicle_command_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr
-      px4_vehicle_attitude_setpoint_pub_;
+    px4_vehicle_attitude_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr px4_vehicle_rates_setpoint_pub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_visual_odometry_pub_;
 
@@ -140,7 +144,7 @@ private:
 
 private:
   bool manual_from_operator_ = false;
-  bool set_disarm_           = false;
+  bool set_disarm_ = false;
   nav_msgs::msg::Odometry odometry_msg_;
 
   std::atomic<uint64_t> timestamp_;
@@ -155,7 +159,7 @@ private:
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;
-  bool external_odom_   = true;
+  bool external_odom_ = true;
   std::string base_link_frame_id_;
   std::string odom_frame_id_;
 
@@ -173,4 +177,4 @@ private:
   void px4GpsCallback(const px4_msgs::msg::SensorGps::SharedPtr msg);
 };
 
-#endif  // PIXHAWK_PLATFORM_HPP_
+#endif  // AS2_PLATFORM_PIXHAWK__PIXHAWK_PLATFORM_HPP_

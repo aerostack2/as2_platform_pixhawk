@@ -46,6 +46,8 @@ from std_srvs.srv import SetBool
 
 
 class Test(Node):
+    """Test class."""
+
     def __init__(self, drone_id='drone_sim_0'):
         super().__init__(f'{drone_id}_test')
 

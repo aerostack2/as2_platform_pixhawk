@@ -50,9 +50,6 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
   base_link_frame_id_ = as2::tf::generateTfName(this, "base_link");
   odom_frame_id_ = as2::tf::generateTfName(this, "odom");
 
-  this->declare_parameter<float>("mass");
-  mass_ = this->get_parameter("mass").as_double();
-
   this->declare_parameter<float>("max_thrust");
   max_thrust_ = this->get_parameter("max_thrust").as_double();
 
@@ -62,7 +59,6 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
   this->declare_parameter<bool>("external_odom");
   external_odom_ = this->get_parameter("external_odom").as_bool();
 
-  RCLCPP_INFO(this->get_logger(), "Mass: %f", mass_);
   RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
   RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
   RCLCPP_INFO(

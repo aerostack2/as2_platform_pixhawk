@@ -159,7 +159,6 @@ private:
   px4_msgs::msg::VehicleRatesSetpoint px4_rates_setpoint_;
   px4_msgs::msg::VehicleOdometry px4_visual_odometry_msg_;
 
-  float mass_;
   float max_thrust_;
   float min_thrust_;
   bool simulation_mode_ = false;

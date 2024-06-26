@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# Copyright 2023 Universidad Politécnica de Madrid
+# Copyright 2024 Universidad Politécnica de Madrid
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -27,30 +25,29 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+
 """Launch Pixhawk platform node."""
 
-__authors__ = 'Miguel Fernández Cortizas, Rafael Pérez Seguí'
-__copyright__ = 'Copyright (c) 2022 Universidad Politécnica de Madrid'
+__authors__ = 'Miguel Fernández Cortizas, Rafael Pérez Seguí, Pedro Arias Pérez'
+__copyright__ = 'Copyright (c) 2024 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
+import os
+
+from ament_index_python.packages import get_package_share_directory
+from as2_core.declare_launch_arguments_from_config_file import DeclareLaunchArgumentsFromConfigFile
+from as2_core.launch_configuration_from_config_file import LaunchConfigurationFromConfigFile
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
     """Entrypoint."""
-    control_modes = PathJoinSubstitution([
-        FindPackageShare('as2_platform_pixhawk'),
-        'config', 'control_modes.yaml'
-    ])
-
-    platform_config_file = PathJoinSubstitution([
-        FindPackageShare('as2_platform_pixhawk'),
-        'config', 'platform_config_file.yaml'
-    ])
+    package_folder = get_package_share_directory('as2_platform_pixhawk')
+    control_modes = os.path.join(package_folder, 'config/control_modes.yaml')
+    platform_config_file = os.path.join(package_folder, 'config/platform_config_file.yaml')
 
     return LaunchDescription([
         DeclareLaunchArgument('namespace',
@@ -60,10 +57,9 @@ def generate_launch_description():
         DeclareLaunchArgument('control_modes_file',
                               default_value=control_modes,
                               description='Platform control modes file'),
-        DeclareLaunchArgument('platform_config_file',
-                              default_value=platform_config_file,
-                              description='Platform configuration file'),
-
+        DeclareLaunchArgumentsFromConfigFile(
+            name='platform_config_file', source_file=platform_config_file,
+            description='Platform configuration file'),
         Node(
             package='as2_platform_pixhawk',
             executable='as2_platform_pixhawk_node',
@@ -75,7 +71,10 @@ def generate_launch_description():
                 {
                     'control_modes_file': LaunchConfiguration('control_modes_file'),
                 },
-                LaunchConfiguration('platform_config_file')
+                LaunchConfiguration('platform_config_file'),
+                LaunchConfigurationFromConfigFile(
+                    'platform_config_file',
+                    default_file=platform_config_file),
             ]
         )
     ])

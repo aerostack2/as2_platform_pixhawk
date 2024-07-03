@@ -71,7 +71,6 @@ def generate_launch_description():
                 {
                     'control_modes_file': LaunchConfiguration('control_modes_file'),
                 },
-                LaunchConfiguration('platform_config_file'),
                 LaunchConfigurationFromConfigFile(
                     'platform_config_file',
                     default_file=platform_config_file),

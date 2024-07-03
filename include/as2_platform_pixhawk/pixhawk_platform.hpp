@@ -165,6 +165,7 @@ private:
   bool external_odom_ = true;
   std::string base_link_frame_id_;
   std::string odom_frame_id_;
+  int target_system_id_ = 1;
 
   Eigen::Quaterniond q_ned_to_enu_;
   Eigen::Quaterniond q_enu_to_ned_;

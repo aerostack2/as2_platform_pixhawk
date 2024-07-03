@@ -59,12 +59,21 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
   this->declare_parameter<bool>("external_odom");
   external_odom_ = this->get_parameter("external_odom").as_bool();
 
+  std::string fmu_prefix = "";
+  this->declare_parameter<std::string>("fmu_prefix");
+  fmu_prefix = this->get_parameter("fmu_prefix").as_string();
+
+  target_system_id_ = 1;
+  this->declare_parameter<int>("target_system_id");
+  target_system_id_ = this->get_parameter("target_system_id").as_int();
+
   RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
   RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
   RCLCPP_INFO(
     this->get_logger(), "Simulation mode: %s",
     this->get_parameter("use_sim_time").as_bool() ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "External odometry mode: %s", external_odom_ ? "true" : "false");
+  RCLCPP_INFO(this->get_logger(), "FMU prefix: %s", fmu_prefix.c_str());
 
   as2::frame::eulerToQuaternion(M_PI, 0.0, M_PI_2, q_ned_to_enu_);
   q_enu_to_ned_ = q_ned_to_enu_;
@@ -73,29 +82,29 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
 
   // declare PX4 subscribers
   px4_imu_sub_ = this->create_subscription<px4_msgs::msg::SensorCombined>(
-    "/fmu/out/sensor_combined", rclcpp::SensorDataQoS(),
+    fmu_prefix + "/fmu/out/sensor_combined", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4imuCallback, this, std::placeholders::_1));
 
   // px4_timesync_sub_ = this->create_subscription<px4_msgs::msg::TimesyncStatus>(
-  //     "/fmu/out/timesync_status", rclcpp::SensorDataQoS(),
+  //     fmu_prefix + "/fmu/out/timesync_status", rclcpp::SensorDataQoS(),
   //     [this](const px4_msgs::msg::TimesyncStatus::UniquePtr msg) {
   //       timestamp_.store(msg->timestamp);
   //     });
 
   px4_vehicle_control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>(
-    "/fmu/out/vehicle_control_mode", rclcpp::SensorDataQoS(),
+    fmu_prefix + "/fmu/out/vehicle_control_mode", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4VehicleControlModeCallback, this, std::placeholders::_1));
 
   px4_gps_sub_ = this->create_subscription<px4_msgs::msg::SensorGps>(
-    "/fmu/out/vehicle_gps_position", rclcpp::SensorDataQoS(),
+    fmu_prefix + "/fmu/out/vehicle_gps_position", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4GpsCallback, this, std::placeholders::_1));
 
   px4_battery_sub_ = this->create_subscription<px4_msgs::msg::BatteryStatus>(
-    "/fmu/out/battery_status", rclcpp::SensorDataQoS(),
+    fmu_prefix + "/fmu/out/battery_status", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4BatteryCallback, this, std::placeholders::_1));
 
   px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-    "/fmu/out/vehicle_odometry", rclcpp::SensorDataQoS(),
+    fmu_prefix + "/fmu/out/vehicle_odometry", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
   tf_handler_ = std::make_shared<as2::tf::TfHandler>(this);
 
@@ -112,21 +121,21 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
 
   // declare PX4 publishers
   px4_offboard_control_mode_pub_ = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
-    "/fmu/in/offboard_control_mode", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/offboard_control_mode", rclcpp::SensorDataQoS());
   px4_trajectory_setpoint_pub_ = this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-    "/fmu/in/trajectory_setpoint", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/trajectory_setpoint", rclcpp::SensorDataQoS());
   px4_vehicle_attitude_setpoint_pub_ =
     this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(
-    "/fmu/in/vehicle_attitude_setpoint", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/vehicle_attitude_setpoint", rclcpp::SensorDataQoS());
   px4_vehicle_rates_setpoint_pub_ = this->create_publisher<px4_msgs::msg::VehicleRatesSetpoint>(
-    "/fmu/in/vehicle_rates_setpoint", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/vehicle_rates_setpoint", rclcpp::SensorDataQoS());
   px4_vehicle_command_pub_ = this->create_publisher<px4_msgs::msg::VehicleCommand>(
-    "/fmu/in/vehicle_command", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/vehicle_command", rclcpp::SensorDataQoS());
   px4_visual_odometry_pub_ = this->create_publisher<px4_msgs::msg::VehicleOdometry>(
-    "/fmu/in/vehicle_visual_odometry", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/vehicle_visual_odometry", rclcpp::SensorDataQoS());
 
   px4_manual_control_switches_pub_ = this->create_publisher<px4_msgs::msg::ManualControlSwitches>(
-    "fmu/in/manual_control_switches", rclcpp::SensorDataQoS());
+    fmu_prefix + "/fmu/in/manual_control_switches", rclcpp::SensorDataQoS());
 }
 
 void PixhawkPlatform::configureSensors()
@@ -541,7 +550,7 @@ void PixhawkPlatform::PX4publishVehicleCommand(uint16_t command, float param1, f
   msg.param1 = param1;
   msg.param2 = param2;
   msg.command = command;
-  msg.target_system = 1;
+  msg.target_system = target_system_id_;
   msg.target_component = 1;
   msg.source_system = 1;
   msg.source_component = 1;

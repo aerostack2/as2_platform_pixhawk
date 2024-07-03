@@ -5,3 +5,5 @@
     max_thrust: 15.0  # Max thrust to send to platform (N)
     min_thrust: 0.15  # Min thrust to send to platform (N)
     external_odom: false  # Flag to use external odometry source
+    fmu_prefix: '' # Prefix for FMU topics
+    target_system_id: 1  # Target system ID for mavros

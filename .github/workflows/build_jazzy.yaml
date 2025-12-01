@@ -1,0 +1,44 @@
+name: build-jazzy
+
+on:
+  pull_request:
+    types: [review_requested, ready_for_review]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      distinct_id:
+      target_branch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: osrf/ros:jazzy-desktop
+    steps:
+      - name: echo distinct ID ${{ github.event.inputs.distinct_id }}
+        run: |
+          echo ${{ github.event.inputs.distinct_id }}
+          echo target_branch : ${{ github.event.inputs.target_branch }}
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y lcov python3-vcstool python3-colcon-lcov-result python3-colcon-coveragepy-result python3-rosdep python3-pip python3-colcon-common-extensions python3-empy
+      - name: Setup ros
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - name: Checkout Aerostack2
+        run : |
+          export TARGET_BRANCH=${{ github.event.inputs.target_branch }}
+          if [ -z "$TARGET_BRANCH" ]; then export TARGET_BRANCH=main; echo "No target branch provided, using $TARGET_BRANCH";  fi
+          wget https://raw.githubusercontent.com/aerostack2/as2_platform_pixhawk/main/dependencies.repos -O /tmp/dependencies.repos && \
+          echo "  aerostack2:\n    type: git\n    url: https://github.com/aerostack2/aerostack2.git\n    version:  $TARGET_BRANCH " >> /tmp/dependencies.repos
+      - name: build and test
+        uses: ros-tooling/action-ros-ci@v0.4
+        with:
+          package-name: >
+            as2_platform_pixhawk
+          target-ros2-distro: jazzy
+          vcs-repo-file-url: /tmp/dependencies.repos

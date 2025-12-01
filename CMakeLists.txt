@@ -28,6 +28,7 @@ set(PROJECT_DEPENDENCIES
   tf2_geometry_msgs
   nav_msgs
   px4_msgs
+  ament_index_cpp
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})

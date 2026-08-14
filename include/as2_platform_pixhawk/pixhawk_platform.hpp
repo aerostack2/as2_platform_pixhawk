@@ -81,28 +81,94 @@ namespace as2_platform_pixhawk
 class PixhawkPlatform : public as2::AerialPlatform
 {
 public:
+  /**
+   * @brief Construct the PX4 platform, creating the uORB interfaces.
+   *
+   * @param options Node options.
+   */
   explicit PixhawkPlatform(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  /**
+   * @brief Destroy the Pixhawk Platform object.
+   */
   ~PixhawkPlatform() {}
 
 public:
+  /**
+   * @brief Create the sensor interfaces the platform publishes.
+   */
   void configureSensors();
+  /**
+   * @brief Publish the sensor measurements read from the autopilot.
+   */
   void publishSensorData();
 
   // TODO(miferco97): set ATTITUDE as default mode with yaw_speed = 0  and Thrust = 0 N
+  /**
+   * @brief Set the control mode the platform falls back to. Not implemented.
+   */
   void setDefaultControlMode() {}
 
+  /**
+   * @brief Arm or disarm the vehicle.
+   *
+   * @param state True to arm, false to disarm.
+   * @return true if the vehicle accepted the request.
+   */
   bool ownSetArmingState(bool state);
+  /**
+   * @brief Enter or leave offboard control.
+   *
+   * @param offboard True to take control, false to release it.
+   * @return true if the vehicle accepted the request.
+   */
   bool ownSetOffboardControl(bool offboard);
+  /**
+   * @brief Accept a control mode requested through the platform interface.
+   *
+   * @param msg Requested control mode.
+   * @return true if the platform accepts the mode.
+   */
   bool ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg);
+  /**
+   * @brief Send the actuator commands, keeping the offboard heartbeat alive
+   * even while the platform is not sending references.
+   */
   void sendCommand() override;
+  /**
+   * @brief Send the current actuator commands to the vehicle.
+   *
+   * @return true if the command was sent.
+   */
   bool ownSendCommand();
+  /**
+   * @brief Stop the motors immediately, without landing.
+   */
   void ownKillSwitch() override;
+  /**
+   * @brief Hold the vehicle in place with a zero setpoint.
+   */
   void ownStopPlatform() override;
 
+  /**
+   * @brief Zero the trajectory setpoint sent to the autopilot.
+   */
   void resetTrajectorySetpoint();
+
+  /**
+   * @brief Zero the attitude setpoint sent to the autopilot.
+   */
   void resetAttitudeSetpoint();
+
+  /**
+   * @brief Zero the body rates setpoint sent to the autopilot.
+   */
   void resetRatesSetpoint();
 
+  /**
+   * @brief Get whether the platform is running against a simulated autopilot.
+   *
+   * @return true in simulation mode.
+   */
   bool getFlagSimulationMode();
 
 private:
@@ -115,6 +181,12 @@ private:
 
   std::shared_ptr<as2::tf::TfHandler> tf_handler_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr external_odometry_sub_;
+  /**
+   * @brief Forward an external velocity estimate to the autopilot, as visual
+   * odometry.
+   *
+   * @param msg Twist of the vehicle, from an external localization system.
+   */
   void externalOdomCb(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
 
   // PX4 subscribers
@@ -137,13 +209,42 @@ private:
   rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_visual_odometry_pub_;
 
   // PX4 Functions
+  /**
+   * @brief Send the arm command to PX4.
+   */
   void PX4arm();
+  /**
+   * @brief Send the disarm command to PX4.
+   */
   void PX4disarm();
+  /**
+   * @brief Publish the offboard control mode heartbeat, which tells PX4 which
+   * kind of setpoint it must expect.
+   */
   void PX4publishOffboardControlMode();
+  /**
+   * @brief Publish the current trajectory setpoint to PX4.
+   */
   void PX4publishTrajectorySetpoint();
+  /**
+   * @brief Publish the current attitude setpoint to PX4.
+   */
   void PX4publishAttitudeSetpoint();
+  /**
+   * @brief Publish the current body rates setpoint to PX4.
+   */
   void PX4publishRatesSetpoint();
+  /**
+   * @brief Send a vehicle command to PX4.
+   *
+   * @param command PX4 command id.
+   * @param param1 First command parameter.
+   * @param param2 Second command parameter.
+   */
   void PX4publishVehicleCommand(uint16_t command, float param1 = 0.0, float param2 = 0.0);
+  /**
+   * @brief Publish the last visual odometry to the PX4 estimator.
+   */
   void PX4publishVisualOdometry();
 
 private:

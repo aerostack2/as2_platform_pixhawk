@@ -49,29 +49,21 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
 
   base_link_frame_id_ = as2::tf::generateTfName(this, "base_link");
   odom_frame_id_ = as2::tf::generateTfName(this, "odom");
-
-  this->declare_parameter<float>("max_thrust");
-  max_thrust_ = this->get_parameter("max_thrust").as_double();
-
-  this->declare_parameter<float>("min_thrust");
-  min_thrust_ = this->get_parameter("min_thrust").as_double();
-
-  this->declare_parameter<bool>("external_odom");
-  external_odom_ = this->get_parameter("external_odom").as_bool();
+  max_thrust_ = this->getParameter<double>("max_thrust");
+  min_thrust_ = this->getParameter<double>("min_thrust");
+  external_odom_ = this->getParameter<bool>("external_odom");
 
   std::string fmu_prefix = "";
-  this->declare_parameter<std::string>("fmu_prefix");
-  fmu_prefix = this->get_parameter("fmu_prefix").as_string();
+  fmu_prefix = this->getParameter<std::string>("fmu_prefix");
 
   target_system_id_ = 1;
-  this->declare_parameter<int>("target_system_id");
-  target_system_id_ = this->get_parameter("target_system_id").as_int();
+  target_system_id_ = this->getParameter<int>("target_system_id");
 
   RCLCPP_INFO(this->get_logger(), "Max thrust: %f", max_thrust_);
   RCLCPP_INFO(this->get_logger(), "Min thrust: %f", min_thrust_);
   RCLCPP_INFO(
     this->get_logger(), "Simulation mode: %s",
-    this->get_parameter("use_sim_time").as_bool() ? "true" : "false");
+    this->getParameter<bool>("use_sim_time") ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "External odometry mode: %s", external_odom_ ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "FMU prefix: %s", fmu_prefix.c_str());
 
@@ -841,7 +833,7 @@ void PixhawkPlatform::px4BatteryCallback(const px4_msgs::msg::BatteryStatus::Sha
 bool PixhawkPlatform::getFlagSimulationMode()
 {
   // TODO(miferco97): check if this is better than creating a variable to store the value
-  return this->get_parameter("use_sim_time").as_bool();
+  return this->getParameter<bool>("use_sim_time");
 }
 
 }  // namespace as2_platform_pixhawk

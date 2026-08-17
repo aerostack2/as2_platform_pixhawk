@@ -209,9 +209,9 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode
     //   px4_offboard_control_mode_.acceleration = true;
     //   RCLCPP_INFO(this->get_logger(), "ACCEL_MODE ENABLED");
     // } break;
-    case as2_msgs::msg::ControlMode::ACRO: {
+    case as2_msgs::msg::ControlMode::BODY_RATES: {
         px4_offboard_control_mode_.body_rate = true;
-        RCLCPP_INFO(this->get_logger(), "ACRO_MODE ENABLED");
+        RCLCPP_INFO(this->get_logger(), "BODY_RATES_MODE ENABLED");
       } break;
     default:
       RCLCPP_WARN(this->get_logger(), "CONTROL MODE %d NOT SUPPORTED", msg.control_mode);
@@ -351,10 +351,11 @@ bool PixhawkPlatform::ownSendCommand()
           px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / max_thrust_;
         }
       } break;
-    case as2_msgs::msg::ControlMode::ACRO: {
+    case as2_msgs::msg::ControlMode::BODY_RATES: {
         this->resetRatesSetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
-          RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Angle control not supported on ACRO mode");
+          RCLCPP_WARN_ONCE(
+            this->get_logger(), "Yaw Angle control not supported on BODY_RATES mode");
         }
 
         // FLU --> FRD

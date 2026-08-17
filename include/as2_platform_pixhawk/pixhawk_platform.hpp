@@ -179,7 +179,6 @@ private:
   std::unique_ptr<as2::sensors::Sensor<nav_msgs::msg::Odometry>> odometry_raw_estimation_ptr_;
   std::unique_ptr<as2::sensors::GPS> gps_sensor_ptr_;
 
-  std::shared_ptr<as2::tf::TfHandler> tf_handler_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr external_odometry_sub_;
   /**
    * @brief Forward an external velocity estimate to the autopilot, as visual

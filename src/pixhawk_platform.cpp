@@ -98,7 +98,6 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
   px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
     fmu_prefix + "/fmu/out/vehicle_odometry", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
-  tf_handler_ = std::make_shared<as2::tf::TfHandler>(this);
 
   if (external_odom_) {
     // In real flights, the odometry is published by the onboard computer.
@@ -182,6 +181,10 @@ bool PixhawkPlatform::ownSetOffboardControl(bool offboard)
 bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode & msg)
 {
   px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
+
+  // The PX4 setpoints are built from the local reference frame of the vehicle
+  setCommandPoseFrameId(odom_frame_id_);
+  setCommandTwistFrameId(odom_frame_id_);
 
   /* PIXHAWK CONTROL MODES:
   px4_offboard_control_mode_.position      ->  x,y,z

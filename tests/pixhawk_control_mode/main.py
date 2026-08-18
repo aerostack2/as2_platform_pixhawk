@@ -105,7 +105,6 @@ class Test(Node):
         req = SetPlatformControlMode.Request()
         req.control_mode.control_mode = mode
         req.control_mode.yaw_mode = yaw_mode
-        # req.control_mode.reference_frame = 0  # Deprecated
 
         future = self.set_mode_srv.call_async(req)
         rclpy.spin_until_future_complete(self, future, timeout_sec=10)

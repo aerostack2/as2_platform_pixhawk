@@ -98,7 +98,6 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
   px4_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
     fmu_prefix + "/fmu/out/vehicle_odometry", rclcpp::SensorDataQoS(),
     std::bind(&PixhawkPlatform::px4odometryCallback, this, std::placeholders::_1));
-  tf_handler_ = std::make_shared<as2::tf::TfHandler>(this);
 
   if (external_odom_) {
     // In real flights, the odometry is published by the onboard computer.
@@ -183,6 +182,10 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode
 {
   px4_offboard_control_mode_ = px4_msgs::msg::OffboardControlMode();  // RESET CONTROL MODE
 
+  // The PX4 setpoints are built from the local reference frame of the vehicle
+  setCommandPoseFrameId(odom_frame_id_);
+  setCommandTwistFrameId(odom_frame_id_);
+
   /* PIXHAWK CONTROL MODES:
   px4_offboard_control_mode_.position      ->  x,y,z
   px4_offboard_control_mode_.velocity      ->  vx,vy,vz
@@ -209,9 +212,9 @@ bool PixhawkPlatform::ownSetPlatformControlMode(const as2_msgs::msg::ControlMode
     //   px4_offboard_control_mode_.acceleration = true;
     //   RCLCPP_INFO(this->get_logger(), "ACCEL_MODE ENABLED");
     // } break;
-    case as2_msgs::msg::ControlMode::ACRO: {
+    case as2_msgs::msg::ControlMode::BODY_RATES: {
         px4_offboard_control_mode_.body_rate = true;
-        RCLCPP_INFO(this->get_logger(), "ACRO_MODE ENABLED");
+        RCLCPP_INFO(this->get_logger(), "BODY_RATES_MODE ENABLED");
       } break;
     default:
       RCLCPP_WARN(this->get_logger(), "CONTROL MODE %d NOT SUPPORTED", msg.control_mode);
@@ -351,10 +354,11 @@ bool PixhawkPlatform::ownSendCommand()
           px4_attitude_setpoint_.thrust_body[2] = -command_thrust_msg_.thrust / max_thrust_;
         }
       } break;
-    case as2_msgs::msg::ControlMode::ACRO: {
+    case as2_msgs::msg::ControlMode::BODY_RATES: {
         this->resetRatesSetpoint();
         if (platform_control_mode.yaw_mode == as2_msgs::msg::ControlMode::YAW_ANGLE) {
-          RCLCPP_WARN_ONCE(this->get_logger(), "Yaw Angle control not supported on ACRO mode");
+          RCLCPP_WARN_ONCE(
+            this->get_logger(), "Yaw Angle control not supported on BODY_RATES mode");
         }
 
         // FLU --> FRD

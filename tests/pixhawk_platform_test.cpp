@@ -178,7 +178,6 @@ int platform_test()
   as2_msgs::msg::ControlMode control_mode;
   control_mode.control_mode = as2_msgs::msg::ControlMode::SPEED;
   control_mode.yaw_mode = as2_msgs::msg::ControlMode::YAW_SPEED;
-  control_mode.reference_frame = as2_msgs::msg::ControlMode::LOCAL_ENU_FRAME;
   if (!test_node->setControlMode(control_mode, false)) {
     return -1;
   }

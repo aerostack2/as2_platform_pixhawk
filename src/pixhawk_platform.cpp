@@ -47,8 +47,8 @@ PixhawkPlatform::PixhawkPlatform(const rclcpp::NodeOptions & options)
 {
   configureSensors();
 
-  base_link_frame_id_ = as2::tf::generateTfName(this, "base_link");
-  odom_frame_id_ = as2::tf::generateTfName(this, "odom");
+  base_link_frame_id_ = this->getBaseFrameId();
+  odom_frame_id_ = this->getOdomFrameId();
   max_thrust_ = this->getParameter<double>("max_thrust");
   min_thrust_ = this->getParameter<double>("min_thrust");
   external_odom_ = this->getParameter<bool>("external_odom");
